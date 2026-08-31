@@ -40,3 +40,46 @@ class RequirementData(BaseModel):
 class RequirementResponse(BaseModel):
     success: bool
     data: RequirementData
+
+
+# ==============================================================================
+# Stage 5: Destination Intelligence Schemas
+# ==============================================================================
+
+
+class DestinationRecommendationItem(BaseModel):
+    name: str = Field(..., description="Name of the place, area, or activity")
+    category: str = Field(
+        ...,
+        description="Category: famous_place, hidden_gem, nearby_place, food_dining, stay_area, nature_adventure, cultural_historical, family_friendly",
+    )
+    description: str = Field(..., description="Rich summary of the recommendation")
+    why_recommended: str = Field(..., description="Reasoning personalized to user interests/preferences")
+    estimated_visit_duration: Optional[str] = Field(None, description="e.g. '2-3 hours', 'Half day'")
+    estimated_cost: Optional[float] = Field(None, description="Estimated cost in local currency")
+    currency: str = Field("INR", description="Currency code (e.g. INR, USD)")
+    latitude: Optional[float] = Field(None, description="Latitude coordinate if available")
+    longitude: Optional[float] = Field(None, description="Longitude coordinate if available")
+    best_time_to_visit: Optional[str] = Field(None, description="e.g. 'Morning', 'Sunset', 'October to March'")
+    distance_from_destination: Optional[str] = Field(None, description="e.g. 'Central', '15 km north'")
+    distance_from_previous_location: Optional[str] = Field(None, description="Distance from origin or transit hub")
+    tags: List[str] = Field(default_factory=list, description="Keywords / theme tags")
+    confidence: float = Field(0.9, ge=0.0, le=1.0, description="Recommendation confidence score between 0.0 and 1.0")
+
+
+class DestinationStartRequest(BaseModel):
+    trip_id: str = Field(..., description="Unique UUID of the trip")
+
+
+class DestinationResponseData(BaseModel):
+    trip_id: str
+    destination: str
+    recommendations: List[DestinationRecommendationItem]
+    categories_summary: Optional[Dict[str, int]] = None
+    total_recommendations: int
+
+
+class DestinationResponse(BaseModel):
+    success: bool
+    data: DestinationResponseData
+

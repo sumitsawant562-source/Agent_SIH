@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { api } from "@/lib/api";
 import { Trip } from "@/types/trip";
+import { DestinationRecommendationItem } from "@/types/agent";
 import {
   MapPin,
   Calendar,
@@ -26,6 +27,14 @@ import {
   Home,
   Compass,
   Tag,
+  Search,
+  ChevronRight,
+  Landmark,
+  TreePine,
+  Coffee,
+  Gem,
+  BedDouble,
+  Compass as CompassIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +58,12 @@ function TripDetailsContent() {
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Stage 5 Destination Recommendations State
+  const [recommendations, setRecommendations] = useState<DestinationRecommendationItem[]>([]);
+  const [destLoading, setDestLoading] = useState(false);
+  const [destError, setDestError] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+
   useEffect(() => {
     if (!tripId) return;
 
@@ -68,6 +83,23 @@ function TripDetailsContent() {
 
     loadTrip();
   }, [tripId]);
+
+  const handleFetchRecommendations = async () => {
+    if (!tripId) return;
+    setDestLoading(true);
+    setDestError(null);
+    try {
+      const res = await api.startDestinationAgent(tripId);
+      if (res && res.data && res.data.recommendations) {
+        setRecommendations(res.data.recommendations);
+      }
+    } catch (err: any) {
+      console.error("Failed to fetch destination recommendations:", err);
+      setDestError(err.message || "Failed to generate destination recommendations.");
+    } finally {
+      setDestLoading(false);
+    }
+  };
 
   const handleDelete = async () => {
     if (!tripId) return;
@@ -98,6 +130,68 @@ function TripDetailsContent() {
         return <Car className="h-4 w-4" />;
     }
   };
+
+  const getCategoryBadgeClass = (category: string) => {
+    switch (category) {
+      case "famous_place":
+        return "bg-cyan-500/10 text-cyan-400 border-cyan-500/20";
+      case "hidden_gem":
+        return "bg-rose-500/10 text-rose-300 border-rose-500/20";
+      case "nearby_place":
+        return "bg-amber-500/10 text-amber-300 border-amber-500/20";
+      case "food_dining":
+        return "bg-orange-500/10 text-orange-300 border-orange-500/20";
+      case "stay_area":
+        return "bg-indigo-500/10 text-indigo-300 border-indigo-500/20";
+      case "nature_adventure":
+        return "bg-emerald-500/10 text-emerald-300 border-emerald-500/20";
+      case "cultural_historical":
+        return "bg-purple-500/10 text-purple-300 border-purple-500/20";
+      case "family_friendly":
+        return "bg-teal-500/10 text-teal-300 border-teal-500/20";
+      default:
+        return "bg-slate-800 text-slate-300 border-slate-700";
+    }
+  };
+
+  const getCategoryLabel = (cat: string) => {
+    switch (cat) {
+      case "famous_place":
+        return "Famous Landmark";
+      case "hidden_gem":
+        return "Hidden Gem";
+      case "nearby_place":
+        return "Nearby Excursion";
+      case "food_dining":
+        return "Food & Dining";
+      case "stay_area":
+        return "Stay Neighborhood";
+      case "nature_adventure":
+        return "Nature & Adventure";
+      case "cultural_historical":
+        return "Culture & Heritage";
+      case "family_friendly":
+        return "Family Friendly";
+      default:
+        return cat.replace(/_/g, " ");
+    }
+  };
+
+  const filteredRecommendations = selectedCategory === "all"
+    ? recommendations
+    : recommendations.filter((r) => r.category === selectedCategory);
+
+  const categories = [
+    { id: "all", label: "All Categories" },
+    { id: "famous_place", label: "Famous Places" },
+    { id: "hidden_gem", label: "Hidden Gems" },
+    { id: "nearby_place", label: "Nearby Getaways" },
+    { id: "food_dining", label: "Food & Dining" },
+    { id: "stay_area", label: "Stay Areas" },
+    { id: "nature_adventure", label: "Nature & Adventure" },
+    { id: "cultural_historical", label: "Culture & Heritage" },
+    { id: "family_friendly", label: "Family Friendly" },
+  ];
 
   if (loading) {
     return (
@@ -299,25 +393,201 @@ function TripDetailsContent() {
         </Card>
       </div>
 
-      {/* Stage 4 AI Agent Readiness Notice */}
-      <div className="mt-8 rounded-2xl border border-slate-800 bg-slate-900/40 p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="p-2.5 rounded-xl bg-teal-500/10 border border-teal-500/20 text-teal-400">
-            <Sparkles className="h-5 w-5" />
-          </div>
+      {/* ========================================================================= */}
+      {/* STAGE 5: DESTINATION INTELLIGENCE AGENT SECTION */}
+      {/* ========================================================================= */}
+      <div className="mt-12">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
           <div>
-            <h3 className="text-sm font-bold text-white">Trip Draft Configured</h3>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Trip parameters are saved. Multi-agent itinerary synthesis will execute in Stage 4.
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <Sparkles className="h-3 w-3" />
+                Stage 5 Agent
+              </span>
+              <h2 className="text-xl font-bold text-white tracking-tight">
+                Destination Intelligence & Recommendations
+              </h2>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-400 mt-1">
+              AI-curated places, hidden gems, culinary hotspots, and stay areas tailored for {trip.destination}.
             </p>
           </div>
-        </div>
-        <Link href="/dashboard">
-          <Button variant="outline" size="sm">
-            Return to Dashboard
+
+          <Button
+            onClick={handleFetchRecommendations}
+            isLoading={destLoading}
+            className="gap-2 bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-400 hover:to-emerald-500 text-slate-950 font-semibold shadow-lg shadow-teal-500/20"
+          >
+            <Sparkles className="h-4 w-4" />
+            <span>{recommendations.length > 0 ? "Regenerate Recommendations" : "Analyze Destination"}</span>
           </Button>
-        </Link>
+        </div>
+
+        {/* Error Alert */}
+        {destError && (
+          <div className="mt-4 p-4 rounded-xl border border-rose-500/30 bg-rose-500/10 flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-rose-400 mt-0.5 flex-shrink-0" />
+            <div className="text-xs text-rose-200">{destError}</div>
+          </div>
+        )}
+
+        {/* Category Filter Pills */}
+        {recommendations.length > 0 && (
+          <div className="mt-6 flex flex-wrap gap-2">
+            {categories.map((cat) => {
+              const count = cat.id === "all"
+                ? recommendations.length
+                : recommendations.filter((r) => r.category === cat.id).length;
+              if (count === 0 && cat.id !== "all") return null;
+
+              const isSelected = selectedCategory === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(cat.id)}
+                  className={`text-xs px-3 py-1.5 rounded-xl font-medium transition-all flex items-center gap-1.5 border ${
+                    isSelected
+                      ? "bg-teal-500 text-slate-950 border-teal-400 shadow-md font-semibold"
+                      : "bg-slate-900/80 text-slate-300 border-slate-800 hover:border-slate-700 hover:text-white"
+                  }`}
+                >
+                  <span>{cat.label}</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isSelected ? "bg-slate-950/20 text-slate-950" : "bg-slate-800 text-slate-400"}`}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Loading Spinner State */}
+        {destLoading && (
+          <div className="mt-8 rounded-2xl border border-slate-800 bg-slate-900/40 p-12 flex flex-col items-center justify-center space-y-4">
+            <div className="h-10 w-10 animate-spin rounded-full border-2 border-teal-500/20 border-t-teal-400" />
+            <p className="text-xs uppercase tracking-widest text-slate-400 font-semibold animate-pulse">
+              Destination Agent is analyzing {trip.destination}...
+            </p>
+          </div>
+        )}
+
+        {/* Empty State before Analysis */}
+        {!destLoading && recommendations.length === 0 && !destError && (
+          <div className="mt-6 rounded-2xl border border-dashed border-slate-800 bg-slate-900/30 p-10 text-center">
+            <Compass className="mx-auto h-10 w-10 text-slate-600 mb-3" />
+            <h3 className="text-sm font-semibold text-slate-300">No Destination Recommendations Yet</h3>
+            <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
+              Click &quot;Analyze Destination&quot; above to run the Destination Intelligence Agent with Gemini AI and generate personalized recommendations.
+            </p>
+            <div className="mt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleFetchRecommendations}
+                className="gap-2 text-teal-400 border-teal-500/30 hover:bg-teal-500/10"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>Start Destination Agent</span>
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Recommendations Cards Grid */}
+        {!destLoading && filteredRecommendations.length > 0 && (
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-5">
+            {filteredRecommendations.map((item, idx) => (
+              <Card
+                key={idx}
+                className="border-slate-800/80 bg-slate-900/90 hover:border-slate-700/80 transition-all shadow-lg flex flex-col justify-between"
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-md border uppercase tracking-wider ${getCategoryBadgeClass(item.category)}`}>
+                        {getCategoryLabel(item.category)}
+                      </span>
+                      <CardTitle className="text-lg font-bold text-white mt-2 leading-snug">
+                        {item.name}
+                      </CardTitle>
+                    </div>
+                    {item.confidence && (
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-800 text-teal-300 border border-slate-700 flex-shrink-0" title="Recommendation Confidence">
+                        {Math.round(item.confidence * 100)}% match
+                      </span>
+                    )}
+                  </div>
+                  <CardDescription className="text-xs text-slate-300/90 mt-2 leading-relaxed">
+                    {item.description}
+                  </CardDescription>
+                </CardHeader>
+
+                <CardContent className="pt-0 space-y-3.5 text-xs">
+                  {/* Why Recommended Reason */}
+                  {item.why_recommended && (
+                    <div className="rounded-xl bg-teal-500/5 border border-teal-500/15 p-2.5">
+                      <div className="text-[10px] uppercase font-bold text-teal-400 tracking-wider mb-1 flex items-center gap-1">
+                        <Sparkles className="h-3 w-3" />
+                        Why Recommended
+                      </div>
+                      <p className="text-slate-300 leading-relaxed text-[11px]">
+                        {item.why_recommended}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Metadata Chips (Cost, Duration, Best Time) */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-slate-400">
+                    {item.estimated_visit_duration && (
+                      <div className="flex items-center gap-1.5 bg-slate-950/60 px-2.5 py-1.5 rounded-lg border border-slate-800/80">
+                        <Clock className="h-3.5 w-3.5 text-teal-400 flex-shrink-0" />
+                        <span className="truncate">{item.estimated_visit_duration}</span>
+                      </div>
+                    )}
+                    {item.estimated_cost !== null && item.estimated_cost !== undefined && (
+                      <div className="flex items-center gap-1.5 bg-slate-950/60 px-2.5 py-1.5 rounded-lg border border-slate-800/80">
+                        <Wallet className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
+                        <span className="truncate font-semibold text-slate-200">
+                          {item.estimated_cost === 0 ? "Free Entry" : `${item.currency || "₹"} ${item.estimated_cost}`}
+                        </span>
+                      </div>
+                    )}
+                    {item.best_time_to_visit && (
+                      <div className="flex items-center gap-1.5 bg-slate-950/60 px-2.5 py-1.5 rounded-lg border border-slate-800/80 col-span-2 sm:col-span-1">
+                        <Calendar className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />
+                        <span className="truncate">{item.best_time_to_visit}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Distance info */}
+                  {item.distance_from_destination && (
+                    <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                      <MapPin className="h-3.5 w-3.5 text-teal-400 flex-shrink-0" />
+                      <span>{item.distance_from_destination}</span>
+                    </div>
+                  )}
+
+                  {/* Tags */}
+                  {item.tags && item.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-1 border-t border-slate-800/60">
+                      {item.tags.map((tag, tIdx) => (
+                        <span
+                          key={tIdx}
+                          className="text-[10px] px-2 py-0.5 rounded-md bg-slate-800/80 text-slate-400 border border-slate-700/60"
+                        >
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
 }
+

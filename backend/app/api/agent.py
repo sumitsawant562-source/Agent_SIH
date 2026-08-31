@@ -8,9 +8,14 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.security import AuthenticatedUser, get_current_user
+from app.graph.destination_graph import run_destination_graph
 from app.graph.requirement_graph import run_requirement_graph
 from app.graph.state import create_initial_travel_state
 from app.schemas.agent import (
+    DestinationRecommendationItem,
+    DestinationResponse,
+    DestinationResponseData,
+    DestinationStartRequest,
     RequirementData,
     RequirementRespondRequest,
     RequirementResponse,
@@ -181,3 +186,64 @@ async def respond_requirements(
             special_requirements=final_state.get("special_requirements"),
         ),
     )
+
+
+@router.post(
+    "/destinations/start",
+    response_model=DestinationResponse,
+    summary="Start Destination Intelligence Evaluation",
+    description="Analyzes completed TravelState and generates categorized, personalized destination recommendations using Gemini AI.",
+)
+async def start_destinations(
+    req: DestinationStartRequest,
+    current_user: AuthenticatedUser = Depends(get_current_user),
+):
+    """
+    1. Authenticates user & verifies trip ownership.
+    2. Loads trip data & initializes TravelState.
+    3. Runs Destination Graph pipeline.
+    4. Computes category summaries & returns structured recommendations.
+    """
+    # 1: Load trip and enforce ownership (raises 404/403 automatically)
+    trip = await TripService.get_trip_by_id(current_user.id, req.trip_id)
+
+    # 2: Initialize TravelState
+    initial_state = create_initial_travel_state(
+        trip_id=req.trip_id,
+        user_id=current_user.id,
+        trip_data=trip,
+    )
+
+    # 3: Run destination graph
+    try:
+        final_state = await run_destination_graph(initial_state)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate destination recommendations.",
+        )
+
+    recommendations_raw = final_state.get("destination_recommendations") or []
+    
+    # Cast to DestinationRecommendationItem models
+    items: list[DestinationRecommendationItem] = []
+    category_counts: dict[str, int] = {}
+
+    for r in recommendations_raw:
+        item = DestinationRecommendationItem(**r)
+        items.append(item)
+        category_counts[item.category] = category_counts.get(item.category, 0) + 1
+
+    destination_name = final_state.get("destination") or trip.get("destination") or "Unknown"
+
+    return DestinationResponse(
+        success=True,
+        data=DestinationResponseData(
+            trip_id=req.trip_id,
+            destination=destination_name,
+            recommendations=items,
+            categories_summary=category_counts,
+            total_recommendations=len(items),
+        ),
+    )
+

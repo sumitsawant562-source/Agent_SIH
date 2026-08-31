@@ -51,6 +51,9 @@ class TravelState(TypedDict, total=False):
     errors: List[str]
     agent_status: str
 
+    # Destination recommendations (Stage 5)
+    destination_recommendations: Optional[List[Dict[str, Any]]]
+
 
 def create_initial_travel_state(
     trip_id: str,
@@ -154,4 +157,5 @@ def create_initial_travel_state(
         conversation_history=data.get("conversation_history") or [],
         errors=[],
         agent_status="idle",
+        destination_recommendations=data.get("destination_recommendations") or [],
     )

@@ -83,3 +83,83 @@ class DestinationResponse(BaseModel):
     success: bool
     data: DestinationResponseData
 
+
+# ==============================================================================
+# Stage 6: Weather Intelligence Schemas
+# ==============================================================================
+
+
+class CurrentWeather(BaseModel):
+    location_name: str = Field(..., description="Name of the weather observation location")
+    latitude: float = Field(..., description="Latitude coordinate")
+    longitude: float = Field(..., description="Longitude coordinate")
+    temperature: float = Field(..., description="Current temperature in Celsius")
+    feels_like: float = Field(..., description="Perceived temperature in Celsius")
+    temperature_min: Optional[float] = Field(None, description="Minimum temperature in Celsius")
+    temperature_max: Optional[float] = Field(None, description="Maximum temperature in Celsius")
+    humidity: int = Field(..., ge=0, le=100, description="Humidity percentage")
+    pressure: Optional[int] = Field(None, description="Atmospheric pressure in hPa")
+    wind_speed: float = Field(..., ge=0.0, description="Wind speed in meters/second")
+    wind_direction: Optional[int] = Field(None, ge=0, le=360, description="Wind direction in degrees")
+    precipitation: float = Field(0.0, ge=0.0, description="Recent precipitation volume in mm")
+    rain_probability: float = Field(0.0, ge=0.0, le=1.0, description="Estimated rain probability between 0.0 and 1.0")
+    weather_condition: str = Field(..., description="Main weather condition (e.g. Clear, Clouds, Rain)")
+    weather_description: str = Field(..., description="Detailed condition (e.g. Scattered Clouds, Light Rain)")
+    visibility: int = Field(10000, description="Visibility in meters (max 10000)")
+    sunrise: Optional[str] = Field(None, description="Sunrise time string")
+    sunset: Optional[str] = Field(None, description="Sunset time string")
+    observed_at: str = Field(..., description="ISO 8601 timestamp of observation")
+    source: str = Field("OpenWeatherMap", description="Data provider attribution")
+
+
+class ForecastItem(BaseModel):
+    date: str = Field(..., description="Forecast date (YYYY-MM-DD)")
+    time: str = Field(..., description="Forecast time (HH:MM)")
+    temperature: float = Field(..., description="Forecasted temperature in Celsius")
+    feels_like: float = Field(..., description="Forecasted perceived temperature in Celsius")
+    humidity: int = Field(..., ge=0, le=100, description="Forecasted humidity percentage")
+    precipitation: float = Field(0.0, description="Precipitation in mm")
+    rain_probability: float = Field(0.0, ge=0.0, le=1.0, description="Rain probability (0.0 to 1.0)")
+    wind_speed: float = Field(..., description="Wind speed in m/s")
+    weather_condition: str = Field(..., description="Weather category")
+    weather_description: str = Field(..., description="Detailed description")
+
+
+class WeatherInsight(BaseModel):
+    type: str = Field(..., description="Insight type: rain_alert, temperature_comfort, wind_warning, visibility_warning, optimal_period, precaution")
+    title: str = Field(..., description="Short headline for the insight")
+    message: str = Field(..., description="Actionable recommendation for traveler itinerary planning")
+    severity: str = Field("info", description="Severity level: info, moderate, alert")
+
+
+class PlaceWeatherItem(BaseModel):
+    place_name: str
+    category: str
+    latitude: float
+    longitude: float
+    temperature: float
+    weather_condition: str
+    weather_description: str
+    rain_probability: float
+
+
+class WeatherStartRequest(BaseModel):
+    trip_id: str = Field(..., description="Unique UUID of the trip")
+
+
+class WeatherResponseData(BaseModel):
+    trip_id: str
+    destination: str
+    current_weather: Optional[CurrentWeather] = None
+    forecast: List[ForecastItem] = Field(default_factory=list)
+    insights: List[WeatherInsight] = Field(default_factory=list)
+    place_weathers: List[PlaceWeatherItem] = Field(default_factory=list)
+    weather_status: str = Field(..., description="'ready', 'unavailable', or 'pending'")
+    weather_errors: List[str] = Field(default_factory=list)
+
+
+class WeatherResponse(BaseModel):
+    success: bool
+    data: WeatherResponseData
+
+

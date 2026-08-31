@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { api } from "@/lib/api";
 import { Trip } from "@/types/trip";
-import { DestinationRecommendationItem } from "@/types/agent";
+import { DestinationRecommendationItem, WeatherResponseData } from "@/types/agent";
 import {
   MapPin,
   Calendar,
@@ -34,6 +34,16 @@ import {
   Coffee,
   Gem,
   BedDouble,
+  CloudSun,
+  CloudRain,
+  Sun,
+  Wind,
+  Droplets,
+  Thermometer,
+  Eye,
+  Sunrise,
+  Sunset,
+  RefreshCw,
   Compass as CompassIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -63,6 +73,11 @@ function TripDetailsContent() {
   const [destLoading, setDestLoading] = useState(false);
   const [destError, setDestError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+
+  // Stage 6 Weather Intelligence State
+  const [weatherData, setWeatherData] = useState<WeatherResponseData | null>(null);
+  const [weatherLoading, setWeatherLoading] = useState(false);
+  const [weatherError, setWeatherError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!tripId) return;
@@ -98,6 +113,26 @@ function TripDetailsContent() {
       setDestError(err.message || "Failed to generate destination recommendations.");
     } finally {
       setDestLoading(false);
+    }
+  };
+
+  const handleFetchWeather = async () => {
+    if (!tripId) return;
+    setWeatherLoading(true);
+    setWeatherError(null);
+    try {
+      const res = await api.startWeatherAgent(tripId);
+      if (res && res.data) {
+        setWeatherData(res.data);
+        if (res.data.weather_status === "unavailable" && res.data.weather_errors.length > 0) {
+          setWeatherError(res.data.weather_errors[0]);
+        }
+      }
+    } catch (err: any) {
+      console.error("Failed to fetch weather intelligence:", err);
+      setWeatherError(err.message || "Failed to fetch live weather information.");
+    } finally {
+      setWeatherLoading(false);
     }
   };
 
@@ -587,7 +622,277 @@ function TripDetailsContent() {
           </div>
         )}
       </div>
+
+      {/* ========================================================================= */}
+      {/* STAGE 6: WEATHER INTELLIGENCE AGENT SECTION */}
+      {/* ========================================================================= */}
+      <div className="mt-14">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                <CloudSun className="h-3 w-3" />
+                Stage 6 Agent
+              </span>
+              <h2 className="text-xl font-bold text-white tracking-tight">
+                Weather Intelligence & Climate Advisory
+              </h2>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-400 mt-1">
+              Live meteorological observations, 5-day forecasts, and actionable itinerary insights powered by OpenWeatherMap.
+            </p>
+          </div>
+
+          <Button
+            onClick={handleFetchWeather}
+            isLoading={weatherLoading}
+            className="gap-2 bg-gradient-to-r from-cyan-500 to-teal-600 hover:from-cyan-400 hover:to-teal-500 text-slate-950 font-semibold shadow-lg shadow-cyan-500/20"
+          >
+            <CloudSun className="h-4 w-4" />
+            <span>{weatherData?.current_weather ? "Refresh Weather" : "Analyze Live Weather"}</span>
+          </Button>
+        </div>
+
+        {/* Error Alert */}
+        {weatherError && (
+          <div className="mt-4 p-4 rounded-xl border border-rose-500/30 bg-rose-500/10 flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-rose-400 mt-0.5 flex-shrink-0" />
+              <div className="text-xs text-rose-200">
+                <span className="font-semibold block mb-0.5">Weather Service Notice</span>
+                {weatherError}
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleFetchWeather}
+              className="text-xs text-rose-300 border-rose-500/30 hover:bg-rose-500/10"
+            >
+              Retry
+            </Button>
+          </div>
+        )}
+
+        {/* Loading Spinner */}
+        {weatherLoading && (
+          <div className="mt-8 rounded-2xl border border-slate-800 bg-slate-900/40 p-12 flex flex-col items-center justify-center space-y-4">
+            <div className="h-10 w-10 animate-spin rounded-full border-2 border-cyan-500/20 border-t-cyan-400" />
+            <p className="text-xs uppercase tracking-widest text-slate-400 font-semibold animate-pulse">
+              Fetching real-time atmospheric data for {trip.destination}...
+            </p>
+          </div>
+        )}
+
+        {/* Empty State before Analysis */}
+        {!weatherLoading && !weatherData?.current_weather && !weatherError && (
+          <div className="mt-6 rounded-2xl border border-dashed border-slate-800 bg-slate-900/30 p-10 text-center">
+            <CloudSun className="mx-auto h-10 w-10 text-slate-600 mb-3" />
+            <h3 className="text-sm font-semibold text-slate-300">Live Weather Not Analyzed Yet</h3>
+            <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
+              Click &quot;Analyze Live Weather&quot; to fetch real-time weather metrics, multi-day forecasts, and climate precautions for {trip.destination}.
+            </p>
+            <div className="mt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleFetchWeather}
+                className="gap-2 text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/10"
+              >
+                <CloudSun className="h-3.5 w-3.5" />
+                <span>Start Weather Agent</span>
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Live Weather Content Display */}
+        {!weatherLoading && weatherData?.current_weather && (
+          <div className="mt-6 space-y-6">
+            {/* Top Grid: Current Conditions Card + Key Atmosphere Metrics */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Primary Current Weather Card */}
+              <Card className="lg:col-span-1 border-cyan-500/30 bg-gradient-to-br from-slate-900 via-slate-900 to-cyan-950/40 p-6 flex flex-col justify-between shadow-xl">
+                <div>
+                  <div className="flex items-center justify-between text-xs text-slate-400 pb-3 border-b border-slate-800">
+                    <span className="flex items-center gap-1.5 font-medium text-cyan-300">
+                      <MapPin className="h-3.5 w-3.5" />
+                      {weatherData.current_weather.location_name}
+                    </span>
+                    <span className="text-[10px] uppercase font-mono tracking-wider text-slate-400">
+                      {weatherData.current_weather.source}
+                    </span>
+                  </div>
+
+                  <div className="mt-5 flex items-center justify-between">
+                    <div>
+                      <div className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight">
+                        {Math.round(weatherData.current_weather.temperature)}°C
+                      </div>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Feels like {Math.round(weatherData.current_weather.feels_like)}°C
+                      </p>
+                    </div>
+
+                    <div className="text-right">
+                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 text-xs font-semibold">
+                        <Sun className="h-4 w-4 text-amber-400" />
+                        <span>{weatherData.current_weather.weather_condition}</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-1.5">
+                        {weatherData.current_weather.weather_description}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-slate-800 grid grid-cols-2 gap-2 text-xs text-slate-300">
+                  <div className="flex items-center gap-2">
+                    <Droplets className="h-3.5 w-3.5 text-cyan-400" />
+                    <span>Humidity: {weatherData.current_weather.humidity}%</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Wind className="h-3.5 w-3.5 text-teal-400" />
+                    <span>Wind: {weatherData.current_weather.wind_speed} m/s</span>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Atmospheric Metrics & Sun Times */}
+              <div className="lg:col-span-2 grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 flex flex-col justify-between">
+                  <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
+                    <span>Rain Risk</span>
+                    <CloudRain className="h-4 w-4 text-cyan-400" />
+                  </div>
+                  <div className="mt-3">
+                    <div className="text-2xl font-bold text-white">
+                      {Math.round(weatherData.current_weather.rain_probability * 100)}%
+                    </div>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      {weatherData.current_weather.precipitation > 0 ? `${weatherData.current_weather.precipitation} mm recent` : "No current rain"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 flex flex-col justify-between">
+                  <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
+                    <span>Visibility</span>
+                    <Eye className="h-4 w-4 text-teal-400" />
+                  </div>
+                  <div className="mt-3">
+                    <div className="text-2xl font-bold text-white">
+                      {(weatherData.current_weather.visibility / 1000).toFixed(1)} km
+                    </div>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      {weatherData.current_weather.visibility >= 8000 ? "Clear Sightlines" : "Moderate Visibility"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 flex flex-col justify-between">
+                  <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
+                    <span>Sunrise</span>
+                    <Sunrise className="h-4 w-4 text-amber-400" />
+                  </div>
+                  <div className="mt-3">
+                    <div className="text-xl font-bold text-amber-200">
+                      {weatherData.current_weather.sunrise || "--:--"}
+                    </div>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Dawn Window</p>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 flex flex-col justify-between">
+                  <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
+                    <span>Sunset</span>
+                    <Sunset className="h-4 w-4 text-rose-400" />
+                  </div>
+                  <div className="mt-3">
+                    <div className="text-xl font-bold text-rose-200">
+                      {weatherData.current_weather.sunset || "--:--"}
+                    </div>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Golden Hour</p>
+                  </div>
+                </div>
+
+                {/* Weather Insights Highlights Banner */}
+                {weatherData.insights && weatherData.insights.length > 0 && (
+                  <div className="col-span-2 sm:col-span-4 rounded-2xl border border-teal-500/20 bg-teal-500/5 p-4 space-y-2.5">
+                    <div className="text-xs uppercase font-bold text-teal-400 tracking-wider flex items-center gap-1.5">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Meteorological Travel Advisories
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {weatherData.insights.map((insight, iIdx) => {
+                        const alertStyle = insight.severity === "alert"
+                          ? "border-rose-500/30 bg-rose-500/10 text-rose-200"
+                          : insight.severity === "moderate"
+                          ? "border-amber-500/30 bg-amber-500/10 text-amber-200"
+                          : "border-teal-500/30 bg-slate-950/60 text-slate-300";
+                        return (
+                          <div key={iIdx} className={`p-3 rounded-xl border text-xs ${alertStyle}`}>
+                            <div className="font-semibold text-white mb-1 flex items-center gap-1.5">
+                              <span>{insight.title}</span>
+                            </div>
+                            <p className="text-[11px] leading-relaxed opacity-90">{insight.message}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Multi-Day Forecast Timeline */}
+            {weatherData.forecast && weatherData.forecast.length > 0 && (
+              <div>
+                <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-cyan-400" />
+                  <span>5-Day Weather Forecast Timeline</span>
+                </h3>
+                <div className="flex gap-3 overflow-x-auto pb-3 pt-1 scrollbar-thin scrollbar-thumb-slate-800">
+                  {weatherData.forecast.map((f, fIdx) => (
+                    <div
+                      key={fIdx}
+                      className="flex-shrink-0 w-36 rounded-2xl border border-slate-800/80 bg-slate-900/90 p-3.5 flex flex-col justify-between hover:border-slate-700 transition-all text-center"
+                    >
+                      <div>
+                        <div className="text-[10px] font-semibold text-slate-400">
+                          {f.date.slice(5)} {f.time ? `• ${f.time}` : ""}
+                        </div>
+                        <div className="text-lg font-bold text-white mt-1">
+                          {Math.round(f.temperature)}°C
+                        </div>
+                        <div className="text-[10px] text-slate-400 mt-0.5 truncate">
+                          {f.weather_description}
+                        </div>
+                      </div>
+
+                      <div className="mt-3 pt-2 border-t border-slate-800/60 flex items-center justify-between text-[10px] text-slate-400">
+                        <span className="flex items-center gap-1">
+                          <Droplets className="h-3 w-3 text-cyan-400" />
+                          {f.humidity}%
+                        </span>
+                        {f.rain_probability > 0 ? (
+                          <span className="text-cyan-300 font-semibold">
+                            {Math.round(f.rain_probability * 100)}% rain
+                          </span>
+                        ) : (
+                          <span className="text-emerald-400 font-medium">Dry</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
+
 

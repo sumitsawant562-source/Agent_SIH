@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-2.0-flash"
 
+    # OpenWeatherMap Configuration (Backend Only - NEVER expose to frontend)
+    OPENWEATHER_API_KEY: str = ""
+    OPENWEATHER_BASE_URL: str = "https://api.openweathermap.org/data/2.5"
+    OPENWEATHER_GEO_URL: str = "http://api.openweathermap.org/geo/1.0"
+
     # CORS Configuration
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
 

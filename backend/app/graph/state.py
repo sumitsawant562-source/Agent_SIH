@@ -54,6 +54,13 @@ class TravelState(TypedDict, total=False):
     # Destination recommendations (Stage 5)
     destination_recommendations: Optional[List[Dict[str, Any]]]
 
+    # Weather intelligence (Stage 6)
+    weather_current: Optional[Dict[str, Any]]
+    weather_forecast: Optional[List[Dict[str, Any]]]
+    weather_insights: Optional[List[str]]
+    weather_status: Optional[str]
+    weather_errors: Optional[List[str]]
+
 
 def create_initial_travel_state(
     trip_id: str,
@@ -158,4 +165,10 @@ def create_initial_travel_state(
         errors=[],
         agent_status="idle",
         destination_recommendations=data.get("destination_recommendations") or [],
+        weather_current=data.get("weather_current"),
+        weather_forecast=data.get("weather_forecast") or [],
+        weather_insights=data.get("weather_insights") or [],
+        weather_status=data.get("weather_status") or "pending",
+        weather_errors=data.get("weather_errors") or [],
     )
+

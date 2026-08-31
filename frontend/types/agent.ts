@@ -65,3 +65,75 @@ export interface DestinationResponse {
   data: DestinationResponseData;
 }
 
+// Stage 6: Weather Intelligence Interfaces
+export interface CurrentWeather {
+  location_name: string;
+  latitude: number;
+  longitude: number;
+  temperature: number;
+  feels_like: number;
+  temperature_min?: number | null;
+  temperature_max?: number | null;
+  humidity: number;
+  pressure?: number | null;
+  wind_speed: number;
+  wind_direction?: number | null;
+  precipitation: number;
+  rain_probability: number;
+  weather_condition: string;
+  weather_description: string;
+  visibility: number;
+  sunrise?: string | null;
+  sunset?: string | null;
+  observed_at: string;
+  source: string;
+}
+
+export interface ForecastItem {
+  date: string;
+  time: string;
+  temperature: number;
+  feels_like: number;
+  humidity: number;
+  precipitation: number;
+  rain_probability: number;
+  wind_speed: number;
+  weather_condition: string;
+  weather_description: string;
+}
+
+export interface WeatherInsight {
+  type: string;
+  title: string;
+  message: string;
+  severity: "info" | "moderate" | "alert" | string;
+}
+
+export interface PlaceWeatherItem {
+  place_name: string;
+  category: string;
+  latitude: number;
+  longitude: number;
+  temperature: number;
+  weather_condition: string;
+  weather_description: string;
+  rain_probability: number;
+}
+
+export interface WeatherResponseData {
+  trip_id: string;
+  destination: string;
+  current_weather?: CurrentWeather | null;
+  forecast: ForecastItem[];
+  insights: WeatherInsight[];
+  place_weathers?: PlaceWeatherItem[];
+  weather_status: "ready" | "unavailable" | "pending" | string;
+  weather_errors: string[];
+}
+
+export interface WeatherResponse {
+  success: boolean;
+  data: WeatherResponseData;
+}
+
+

@@ -10,16 +10,24 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.core.security import AuthenticatedUser, get_current_user
 from app.graph.destination_graph import run_destination_graph
 from app.graph.requirement_graph import run_requirement_graph
+from app.graph.weather_graph import run_weather_graph
 from app.graph.state import create_initial_travel_state
 from app.schemas.agent import (
+    CurrentWeather,
     DestinationRecommendationItem,
     DestinationResponse,
     DestinationResponseData,
     DestinationStartRequest,
+    ForecastItem,
+    PlaceWeatherItem,
     RequirementData,
     RequirementRespondRequest,
     RequirementResponse,
     RequirementStartRequest,
+    WeatherInsight,
+    WeatherResponse,
+    WeatherResponseData,
+    WeatherStartRequest,
 )
 from app.schemas.trip import TripUpdate
 from app.services.trip_service import TripService
@@ -246,4 +254,68 @@ async def start_destinations(
             total_recommendations=len(items),
         ),
     )
+
+
+@router.post(
+    "/weather/start",
+    response_model=WeatherResponse,
+    summary="Start Weather Intelligence Analysis",
+    description="Fetches live meteorological data and forecasts for the trip destination and top places using OpenWeatherMap.",
+)
+async def start_weather(
+    req: WeatherStartRequest,
+    current_user: AuthenticatedUser = Depends(get_current_user),
+):
+    """
+    1. Authenticates user & verifies trip ownership.
+    2. Loads trip data & initializes TravelState.
+    3. Runs Weather Graph pipeline.
+    4. Returns structured real-time weather and forecast data.
+    """
+    # 1: Load trip and enforce ownership (raises 404/403 automatically)
+    trip = await TripService.get_trip_by_id(current_user.id, req.trip_id)
+
+    # 2: Initialize TravelState
+    initial_state = create_initial_travel_state(
+        trip_id=req.trip_id,
+        user_id=current_user.id,
+        trip_data=trip,
+    )
+
+    # 3: Run weather graph
+    try:
+        final_state = await run_weather_graph(initial_state)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to execute weather intelligence: {str(e)}",
+        )
+
+    destination_name = final_state.get("destination") or trip.get("destination") or "Unknown"
+    current_raw = final_state.get("weather_current")
+    forecast_raw = final_state.get("weather_forecast") or []
+    insights_raw = final_state.get("weather_insights") or []
+    places_raw = final_state.get("place_weathers") or []
+    weather_status = final_state.get("weather_status") or "unavailable"
+    weather_errors = final_state.get("weather_errors") or []
+
+    current_model = CurrentWeather(**current_raw) if current_raw else None
+    forecast_models = [ForecastItem(**f) for f in forecast_raw]
+    insight_models = [WeatherInsight(**i) for i in insights_raw]
+    place_models = [PlaceWeatherItem(**p) for p in places_raw]
+
+    return WeatherResponse(
+        success=True,
+        data=WeatherResponseData(
+            trip_id=req.trip_id,
+            destination=destination_name,
+            current_weather=current_model,
+            forecast=forecast_models,
+            insights=insight_models,
+            place_weathers=place_models,
+            weather_status=weather_status,
+            weather_errors=weather_errors,
+        ),
+    )
+
 

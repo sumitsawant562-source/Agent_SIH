@@ -1424,7 +1424,15 @@ function TripDetailsContent() {
                           <Wallet className="h-3.5 w-3.5 text-emerald-400" />
                           <span>Daily Budget Allocation Breakdown</span>
                         </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
+                          {day.daily_budget.accommodation !== undefined && (
+                            <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800">
+                              <span className="text-[10px] text-slate-500 block">Stay / Hotel</span>
+                              <span className="font-bold text-teal-300">
+                                {itineraryData.currency} {Math.round(day.daily_budget.accommodation || 0).toLocaleString()}
+                              </span>
+                            </div>
+                          )}
                           <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800">
                             <span className="text-[10px] text-slate-500 block">Food & Dining</span>
                             <span className="font-bold text-amber-300">

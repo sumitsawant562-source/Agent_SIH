@@ -190,6 +190,7 @@ export interface ItineraryDay {
   activities: ItineraryActivityItem[];
   food_recommendations: ItineraryFoodRecommendation[];
   daily_budget?: {
+    accommodation?: number;
     food: number;
     transport: number;
     activities: number;

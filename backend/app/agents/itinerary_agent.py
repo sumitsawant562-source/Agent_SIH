@@ -198,8 +198,8 @@ MANDATORY PLANNING & LOGISTICAL RULES:
    - Include a concise `weather_note` and `weather_summary` for each day.
 
 7. BUDGET & FINANCIAL BREAKDOWN:
-   - Provide a realistic `daily_budget` breakdown per day: `food`, `transport`, `activities`, `miscellaneous`, and `total`.
-   - Calculate `total_estimated_cost` and evaluate `budget_status` ("within_budget", "near_budget", or "exceeds_budget").
+   - Provide a realistic `daily_budget` breakdown per day: `accommodation`, `food`, `transport`, `activities`, `miscellaneous`, and `total`.
+   - Calculate `total_estimated_cost`, `cost_per_traveler`, and evaluate `budget_status` ("within_budget", "near_budget", or "exceeds_budget").
 
 8. OVERALL TRAVEL GUIDANCE:
    - Provide actionable `overall_tips` (transport, local etiquette, currency/tipping).
@@ -354,11 +354,12 @@ Return ONLY valid JSON matching this exact structure. No markdown formatting out
         /* Combined list of breakfast, lunch, snack, dinner objects */
       ],
       "daily_budget": {{
+        "accommodation": 1500.0,
         "food": 1800.0,
         "transport": 800.0,
         "activities": 500.0,
         "miscellaneous": 300.0,
-        "total": 3400.0
+        "total": 4900.0
       }},
       "travel_tips": [
         "Pre-book local cabs or hire a vehicle for seamless point-to-point transit.",
@@ -716,13 +717,15 @@ Return ONLY valid JSON matching this exact structure. No markdown formatting out
             day_food_cost = sum(f["estimated_cost"] for f in food_recommendations_list)
             
             raw_daily_budget = raw_day.get("daily_budget") or {}
+            accom_budget = float(raw_daily_budget.get("accommodation") or 0.0)
             transport_budget = float(raw_daily_budget.get("transport") or 600.0)
             misc_budget = float(raw_daily_budget.get("miscellaneous") or 250.0)
 
-            day_total_cost = round(day_act_cost + day_food_cost + transport_budget + misc_budget, 2)
+            day_total_cost = round(accom_budget + day_act_cost + day_food_cost + transport_budget + misc_budget, 2)
             total_trip_cost += day_total_cost
 
             daily_budget_breakdown = {
+                "accommodation": round(accom_budget, 2),
                 "food": round(day_food_cost, 2),
                 "transport": round(transport_budget, 2),
                 "activities": round(day_act_cost, 2),
@@ -999,14 +1002,16 @@ Return ONLY valid JSON matching this exact structure. No markdown formatting out
             }
             food_recs = [breakfast, lunch, snack, dinner]
 
+            accom_cost = 0.0
             transport_cost = 600.0
             misc_cost = 250.0
             day_act_total = act1_cost + act2_cost + act3_cost
             day_food_total = 300.0 + 450.0 + 200.0 + 650.0
-            day_cost = round(day_act_total + day_food_total + transport_cost + misc_cost, 2)
+            day_cost = round(accom_cost + day_act_total + day_food_total + transport_cost + misc_cost, 2)
             total_trip_cost += day_cost
 
             daily_budget = {
+                "accommodation": accom_cost,
                 "food": day_food_total,
                 "transport": transport_cost,
                 "activities": day_act_total,

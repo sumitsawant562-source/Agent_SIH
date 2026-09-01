@@ -66,6 +66,20 @@ class TravelState(TypedDict, total=False):
     itinerary_status: Optional[str]
     itinerary_errors: Optional[List[str]]
 
+    # Live Route & GPS (Stage 8)
+    current_latitude: Optional[float]
+    current_longitude: Optional[float]
+    gps_accuracy: Optional[float]
+    gps_timestamp: Optional[str]
+    route_origin: Optional[Dict[str, float]]
+    route_destination: Optional[Dict[str, float]]
+    route_distance_km: Optional[float]
+    route_duration_minutes: Optional[float]
+    route_geometry: Optional[Any]
+    route_transport_mode: Optional[str]
+    route_status: Optional[str]
+    route_error: Optional[str]
+
 
 def create_initial_travel_state(
     trip_id: str,
@@ -178,6 +192,19 @@ def create_initial_travel_state(
         itinerary=data.get("itinerary"),
         itinerary_status=data.get("itinerary_status") or "pending",
         itinerary_errors=data.get("itinerary_errors") or [],
+        current_latitude=data.get("current_latitude"),
+        current_longitude=data.get("current_longitude"),
+        gps_accuracy=data.get("gps_accuracy"),
+        gps_timestamp=data.get("gps_timestamp"),
+        route_origin=data.get("route_origin"),
+        route_destination=data.get("route_destination"),
+        route_distance_km=data.get("route_distance_km"),
+        route_duration_minutes=data.get("route_duration_minutes"),
+        route_geometry=data.get("route_geometry"),
+        route_transport_mode=data.get("route_transport_mode") or "driving",
+        route_status=data.get("route_status") or "idle",
+        route_error=data.get("route_error"),
     )
+
 
 

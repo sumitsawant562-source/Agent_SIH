@@ -21,3 +21,29 @@ class CurrentUserResponse(BaseModel):
     email: str
     full_name: Optional[str] = None
     is_authenticated: bool = True
+
+
+class UserSignupRequest(BaseModel):
+    email: EmailStr = Field(..., description="Valid user email address")
+    password: str = Field(..., min_length=6, description="Password with minimum 6 characters")
+    full_name: Optional[str] = Field(None, max_length=150, description="Full name of traveler")
+
+
+class UserLoginRequest(BaseModel):
+    email: EmailStr = Field(..., description="User email address")
+    password: str = Field(..., description="User password")
+
+
+class AuthUserData(BaseModel):
+    id: str
+    email: str
+    full_name: Optional[str] = None
+
+
+class AuthResponse(BaseModel):
+    success: bool = True
+    access_token: str
+    token_type: str = "bearer"
+    user: AuthUserData
+    message: Optional[str] = None
+

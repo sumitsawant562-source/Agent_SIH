@@ -233,4 +233,40 @@ class ItineraryResponse(BaseModel):
     data: ItineraryResponseData
 
 
+# ==============================================================================
+# Stage 8: Live Route & GPS Schemas
+# ==============================================================================
+
+
+class CoordinatePoint(BaseModel):
+    latitude: float = Field(..., ge=-90.0, le=90.0, description="Latitude in decimal degrees")
+    longitude: float = Field(..., ge=-180.0, le=180.0, description="Longitude in decimal degrees")
+
+
+class RouteCalculateRequest(BaseModel):
+    trip_id: str = Field(..., description="Unique UUID of the trip")
+    origin: CoordinatePoint = Field(..., description="Starting location coordinate (e.g. current GPS position)")
+    destination: CoordinatePoint = Field(..., description="Target destination coordinate")
+    transport_mode: str = Field("driving", description="Transport mode: 'driving', 'walking', or 'cycling'")
+
+
+class RouteData(BaseModel):
+    trip_id: str
+    origin: CoordinatePoint
+    destination: CoordinatePoint
+    distance_km: float = Field(0.0, ge=0.0, description="Calculated route distance in kilometers")
+    duration_minutes: float = Field(0.0, ge=0.0, description="Estimated transit duration in minutes")
+    transport_mode: str = Field("driving", description="'driving', 'walking', or 'cycling'")
+    geometry: Optional[Any] = Field(None, description="Polyline coordinates [[lat, lon], ...] for map rendering")
+    source: Optional[str] = Field("osrm", description="Routing data provider source")
+    route_status: str = Field("ready", description="'ready', 'unavailable', or 'error'")
+    route_error: Optional[str] = Field(None, description="Error or failure message if routing failed")
+
+
+class RouteResponse(BaseModel):
+    success: bool
+    data: RouteData
+
+
+
 

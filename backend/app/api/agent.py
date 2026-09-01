@@ -11,9 +11,11 @@ from app.core.security import AuthenticatedUser, get_current_user
 from app.graph.destination_graph import run_destination_graph
 from app.graph.itinerary_graph import run_itinerary_graph
 from app.graph.requirement_graph import run_requirement_graph
+from app.graph.route_graph import run_route_graph
 from app.graph.weather_graph import run_weather_graph
 from app.graph.state import create_initial_travel_state
 from app.schemas.agent import (
+    CoordinatePoint,
     CurrentWeather,
     DestinationRecommendationItem,
     DestinationResponse,
@@ -32,6 +34,9 @@ from app.schemas.agent import (
     RequirementRespondRequest,
     RequirementResponse,
     RequirementStartRequest,
+    RouteCalculateRequest,
+    RouteData,
+    RouteResponse,
     WeatherInsight,
     WeatherResponse,
     WeatherResponseData,
@@ -399,6 +404,62 @@ async def start_itinerary(
             itinerary_errors=itin_errors,
         ),
     )
+
+
+@router.post(
+    "/routes/calculate",
+    response_model=RouteResponse,
+    summary="Calculate Real Live Route",
+    description="Computes distance, duration, and turn-by-turn polyline geometry between origin and destination coordinates.",
+)
+async def calculate_route(
+    req: RouteCalculateRequest,
+    current_user: AuthenticatedUser = Depends(get_current_user),
+):
+    """
+    1. Authenticates user & enforces trip ownership (raises 401/403/404).
+    2. Initializes TravelState with origin, destination, and transport mode.
+    3. Executes 5-node Route Graph with real routing engine (OpenRouteService / OSRM).
+    4. Returns structured distance (km), duration (minutes), and polyline geometry.
+    """
+    # 1: Enforce trip ownership
+    trip = await TripService.get_trip_by_id(current_user.id, req.trip_id)
+
+    # 2: Initialize TravelState
+    state = create_initial_travel_state(
+        trip_id=req.trip_id,
+        user_id=current_user.id,
+        trip_data=trip,
+    )
+    state["route_origin"] = req.origin.model_dump()
+    state["route_destination"] = req.destination.model_dump()
+    state["route_transport_mode"] = req.transport_mode
+
+    # 3: Run route graph
+    try:
+        final_state = await run_route_graph(state)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to calculate route: {str(e)}",
+        )
+
+    return RouteResponse(
+        success=True,
+        data=RouteData(
+            trip_id=req.trip_id,
+            origin=req.origin,
+            destination=req.destination,
+            distance_km=final_state.get("route_distance_km") or 0.0,
+            duration_minutes=final_state.get("route_duration_minutes") or 0.0,
+            transport_mode=final_state.get("route_transport_mode") or req.transport_mode,
+            geometry=final_state.get("route_geometry"),
+            source="osrm",
+            route_status=final_state.get("route_status") or "ready",
+            route_error=final_state.get("route_error"),
+        ),
+    )
+
 
 
 

@@ -1,6 +1,13 @@
 import { supabase } from "@/lib/supabase/client";
 import { Trip, TripCreateInput, TripUpdateInput } from "@/types/trip";
-import { DestinationResponse, ItineraryResponse, RequirementResponse, WeatherResponse } from "@/types/agent";
+import {
+  CoordinatePoint,
+  DestinationResponse,
+  ItineraryResponse,
+  RequirementResponse,
+  RouteResponse,
+  WeatherResponse,
+} from "@/types/agent";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -202,6 +209,24 @@ export const api = {
     return apiFetch<ItineraryResponse>("/agent/itinerary/start", {
       method: "POST",
       body: JSON.stringify({ trip_id: tripId }),
+    });
+  },
+
+  // AI Live Route & GPS Agent (Stage 8)
+  async calculateRoute(
+    tripId: string,
+    origin: CoordinatePoint,
+    destination: CoordinatePoint,
+    transportMode: string = "driving"
+  ): Promise<RouteResponse> {
+    return apiFetch<RouteResponse>("/agent/routes/calculate", {
+      method: "POST",
+      body: JSON.stringify({
+        trip_id: tripId,
+        origin,
+        destination,
+        transport_mode: transportMode,
+      }),
     });
   },
 };

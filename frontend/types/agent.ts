@@ -198,5 +198,30 @@ export interface ItineraryResponse {
   data: ItineraryResponseData;
 }
 
+// Stage 8: Live Route & GPS Interfaces
+export interface CoordinatePoint {
+  latitude: number;
+  longitude: number;
+}
+
+export interface RouteData {
+  trip_id: string;
+  origin: CoordinatePoint;
+  destination: CoordinatePoint;
+  distance_km: number;
+  duration_minutes: number;
+  transport_mode: "driving" | "walking" | "cycling" | string;
+  geometry?: [number, number][] | any;
+  source?: string;
+  route_status: "ready" | "unavailable" | "error" | string;
+  route_error?: string | null;
+}
+
+export interface RouteResponse {
+  success: boolean;
+  data: RouteData;
+}
+
+
 
 

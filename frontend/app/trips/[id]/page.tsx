@@ -6,7 +6,15 @@ import Link from "next/link";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { api } from "@/lib/api";
 import { Trip } from "@/types/trip";
-import { DestinationRecommendationItem, ItineraryData, ItineraryDay, WeatherResponseData } from "@/types/agent";
+import {
+  CoordinatePoint,
+  DestinationRecommendationItem,
+  ItineraryData,
+  ItineraryDay,
+  RouteData,
+  WeatherResponseData,
+} from "@/types/agent";
+import { TripMap } from "@/components/TripMap";
 import {
   MapPin,
   Calendar,
@@ -48,6 +56,11 @@ import {
   CalendarDays,
   UtensilsCrossed,
   AlertTriangle,
+  Navigation,
+  Locate,
+  LocateFixed,
+  Radio,
+  Footprints,
   Compass as CompassIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -88,6 +101,26 @@ function TripDetailsContent() {
   const [itineraryLoading, setItineraryLoading] = useState(false);
   const [itineraryError, setItineraryError] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<number>(1);
+
+  // Stage 8 Live Route & GPS State
+  const [gpsStatus, setGpsStatus] = useState<
+    "GPS_IDLE" | "GPS_LOADING" | "GPS_ACTIVE" | "GPS_PERMISSION_DENIED" | "GPS_UNAVAILABLE" | "GPS_ERROR"
+  >("GPS_IDLE");
+  const [userLocation, setUserLocation] = useState<{
+    latitude: number;
+    longitude: number;
+    accuracy?: number;
+  } | null>(null);
+  const [selectedDestination, setSelectedDestination] = useState<{
+    latitude: number;
+    longitude: number;
+    name: string;
+  } | null>(null);
+  const [transportMode, setTransportMode] = useState<"driving" | "walking" | "cycling">("driving");
+  const [routeData, setRouteData] = useState<RouteData | null>(null);
+  const [routeLoading, setRouteLoading] = useState(false);
+  const [routeError, setRouteError] = useState<string | null>(null);
+  const [routeNotification, setRouteNotification] = useState<string | null>(null);
 
   useEffect(() => {
     if (!tripId) return;
@@ -163,6 +196,114 @@ function TripDetailsContent() {
       setItineraryError(err.message || "Failed to synthesize day-by-day itinerary.");
     } finally {
       setItineraryLoading(false);
+    }
+  };
+
+  // Stage 8 Geolocation & Route Handlers
+  const handleEnableGPS = () => {
+    if (typeof window === "undefined" || !("geolocation" in navigator)) {
+      setGpsStatus("GPS_UNAVAILABLE");
+      setRouteError("Geolocation is not supported by your current browser.");
+      return;
+    }
+
+    setGpsStatus("GPS_LOADING");
+    setRouteError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLocation({
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+        });
+        setGpsStatus("GPS_ACTIVE");
+      },
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) {
+          setGpsStatus("GPS_PERMISSION_DENIED");
+          setRouteError("GPS Permission Denied. Please enable location access in browser settings.");
+        } else if (err.code === err.POSITION_UNAVAILABLE) {
+          setGpsStatus("GPS_UNAVAILABLE");
+          setRouteError("GPS position currently unavailable.");
+        } else {
+          setGpsStatus("GPS_ERROR");
+          setRouteError(`GPS Error: ${err.message}`);
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+    );
+  };
+
+  const handleCalculateRoute = async (
+    targetDestination?: { latitude: number; longitude: number; name: string },
+    modeOverride?: "driving" | "walking" | "cycling"
+  ) => {
+    if (!tripId) return;
+
+    if (!userLocation) {
+      setRouteError("Please enable Live GPS first to calculate route from your current location.");
+      handleEnableGPS();
+      return;
+    }
+
+    const dest = targetDestination || selectedDestination;
+    if (!dest || typeof dest.latitude !== "number" || typeof dest.longitude !== "number") {
+      setRouteError("Please select a destination place with valid coordinates.");
+      return;
+    }
+
+    const activeMode = modeOverride || transportMode;
+
+    setRouteLoading(true);
+    setRouteError(null);
+
+    try {
+      const res = await api.calculateRoute(
+        tripId,
+        { latitude: userLocation.latitude, longitude: userLocation.longitude },
+        { latitude: dest.latitude, longitude: dest.longitude },
+        activeMode
+      );
+
+      if (res && res.data) {
+        setRouteData(res.data);
+        if (res.data.route_status === "unavailable" && res.data.route_error) {
+          setRouteError(res.data.route_error);
+        }
+      }
+    } catch (err: any) {
+      console.error("Failed to calculate route:", err);
+      setRouteError(err.message || "Failed to calculate live transit route.");
+    } finally {
+      setRouteLoading(false);
+    }
+  };
+
+  const handleNavigateToPlace = (place: { name: string; latitude?: number | null; longitude?: number | null }) => {
+    if (typeof place.latitude !== "number" || typeof place.longitude !== "number") {
+      setRouteNotification(`Route unavailable: '${place.name}' does not have geographic coordinates.`);
+      setTimeout(() => setRouteNotification(null), 4000);
+      return;
+    }
+
+    const destObj = {
+      latitude: place.latitude,
+      longitude: place.longitude,
+      name: place.name,
+    };
+
+    setSelectedDestination(destObj);
+
+    if (userLocation) {
+      handleCalculateRoute(destObj);
+    } else {
+      handleEnableGPS();
+    }
+
+    const mapSection = document.getElementById("live-navigation-section");
+    if (mapSection) {
+      mapSection.scrollIntoView({ behavior: "smooth" });
     }
   };
 
@@ -625,17 +766,34 @@ function TripDetailsContent() {
                     )}
                   </div>
 
-                  {/* Distance info */}
-                  {item.distance_from_destination && (
-                    <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-                      <MapPin className="h-3.5 w-3.5 text-teal-400 flex-shrink-0" />
-                      <span>{item.distance_from_destination}</span>
-                    </div>
-                  )}
+                  {/* Distance & Navigate Button */}
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-800/60">
+                    {item.distance_from_destination ? (
+                      <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                        <MapPin className="h-3.5 w-3.5 text-teal-400 flex-shrink-0" />
+                        <span>{item.distance_from_destination}</span>
+                      </div>
+                    ) : (
+                      <div />
+                    )}
+
+                    <Button
+                      size="sm"
+                      onClick={() => handleNavigateToPlace({
+                        name: item.name,
+                        latitude: item.latitude,
+                        longitude: item.longitude,
+                      })}
+                      className="h-7 text-[11px] px-2.5 bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/30 gap-1 rounded-lg"
+                    >
+                      <Navigation className="h-3 w-3" />
+                      <span>Navigate</span>
+                    </Button>
+                  </div>
 
                   {/* Tags */}
                   {item.tags && item.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 pt-1 border-t border-slate-800/60">
+                    <div className="flex flex-wrap gap-1 pt-1">
                       {item.tags.map((tag, tIdx) => (
                         <span
                           key={tIdx}
@@ -1145,13 +1303,35 @@ function TripDetailsContent() {
                               )}
                             </div>
 
-                            <div className="md:text-right flex-shrink-0">
-                              <div className="text-[11px] text-slate-400">Estimated Cost</div>
-                              <div className="text-sm font-bold text-slate-200">
-                                {act.estimated_cost > 0
-                                  ? `${act.currency} ${Math.round(act.estimated_cost)}`
-                                  : "Free Entry"}
+                            <div className="md:text-right flex-shrink-0 flex md:flex-col items-center md:items-end justify-between gap-2">
+                              <div>
+                                <div className="text-[11px] text-slate-400">Estimated Cost</div>
+                                <div className="text-sm font-bold text-slate-200">
+                                  {act.estimated_cost > 0
+                                    ? `${act.currency} ${Math.round(act.estimated_cost)}`
+                                    : "Free Entry"}
+                                </div>
                               </div>
+
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  // Look up matching recommendation with coordinates
+                                  const match = recommendations.find(
+                                    (r) => r.name.toLowerCase().includes(act.place_name.toLowerCase()) ||
+                                           act.place_name.toLowerCase().includes(r.name.toLowerCase())
+                                  );
+                                  handleNavigateToPlace({
+                                    name: act.place_name,
+                                    latitude: match?.latitude,
+                                    longitude: match?.longitude,
+                                  });
+                                }}
+                                className="h-7 text-[11px] px-2.5 bg-violet-600/20 hover:bg-violet-600 text-violet-300 hover:text-white border border-violet-500/30 gap-1 rounded-lg"
+                              >
+                                <Navigation className="h-3 w-3" />
+                                <span>Navigate</span>
+                              </Button>
                             </div>
                           </div>
                         ))}
@@ -1214,10 +1394,230 @@ function TripDetailsContent() {
             </div>
           )}
         </div>
+
+        {/* STAGE 8: LIVE ROUTE & GPS AGENT SECTION */}
+        <div id="live-navigation-section" className="rounded-3xl border border-slate-800 bg-slate-900/40 p-6 md:p-8 backdrop-blur-xl shadow-2xl relative overflow-hidden mt-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-6 mb-6">
+            <div>
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-gradient-to-tr from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                  <Navigation className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <span>Live Route & GPS Navigation</span>
+                    <Badge variant="outline" className="border-blue-500/30 text-blue-400 bg-blue-500/10 text-xs">
+                      Stage 8 Agent
+                    </Badge>
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Real-time browser GPS tracking and turn-by-turn routing to your itinerary destinations
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* GPS Status & Actions */}
+            <div className="flex flex-wrap items-center gap-3">
+              {/* GPS Status Pill */}
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-slate-800 bg-slate-950/70 text-xs">
+                <Radio
+                  className={`h-3.5 w-3.5 ${
+                    gpsStatus === "GPS_ACTIVE"
+                      ? "text-emerald-400 animate-pulse"
+                      : gpsStatus === "GPS_LOADING"
+                      ? "text-amber-400 animate-spin"
+                      : "text-slate-500"
+                  }`}
+                />
+                <span className="text-slate-300 font-medium">
+                  {gpsStatus === "GPS_ACTIVE"
+                    ? `GPS Active (${userLocation?.latitude.toFixed(3)}, ${userLocation?.longitude.toFixed(3)})`
+                    : gpsStatus === "GPS_LOADING"
+                    ? "Acquiring GPS Signal..."
+                    : gpsStatus === "GPS_PERMISSION_DENIED"
+                    ? "GPS Permission Denied"
+                    : "GPS Standby"}
+                </span>
+              </div>
+
+              <Button
+                onClick={handleEnableGPS}
+                variant="outline"
+                className="border-slate-700 text-slate-300 hover:bg-slate-800 text-xs gap-1.5"
+              >
+                <LocateFixed className="h-3.5 w-3.5 text-blue-400" />
+                <span>{gpsStatus === "GPS_ACTIVE" ? "Refresh GPS" : "Enable Live GPS"}</span>
+              </Button>
+            </div>
+          </div>
+
+          {/* Route Notification / Error Callouts */}
+          {routeNotification && (
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5 mb-5 flex items-center gap-2.5 text-xs text-amber-200">
+              <AlertTriangle className="h-4 w-4 text-amber-400 flex-shrink-0" />
+              <span>{routeNotification}</span>
+            </div>
+          )}
+
+          {routeError && (
+            <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 mb-5 flex items-start gap-3 text-xs">
+              <AlertCircle className="h-4 w-4 text-rose-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <strong className="text-rose-200">Routing / GPS Notice:</strong>
+                <p className="text-rose-300 mt-0.5">{routeError}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Controls Bar: Transport Mode & Destination Selector */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            {/* Mode Selector */}
+            <div className="rounded-2xl border border-slate-800/80 bg-slate-950/60 p-3.5 flex flex-col justify-between">
+              <span className="text-[11px] font-semibold text-slate-400">Transport Mode</span>
+              <div className="flex gap-1.5 mt-2">
+                <button
+                  onClick={() => {
+                    setTransportMode("driving");
+                    if (selectedDestination) handleCalculateRoute(selectedDestination, "driving");
+                  }}
+                  className={`flex-1 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                    transportMode === "driving"
+                      ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
+                      : "bg-slate-900 text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <Car className="h-3.5 w-3.5" />
+                  <span>Drive</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setTransportMode("walking");
+                    if (selectedDestination) handleCalculateRoute(selectedDestination, "walking");
+                  }}
+                  className={`flex-1 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                    transportMode === "walking"
+                      ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
+                      : "bg-slate-900 text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <Footprints className="h-3.5 w-3.5" />
+                  <span>Walk</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setTransportMode("cycling");
+                    if (selectedDestination) handleCalculateRoute(selectedDestination, "cycling");
+                  }}
+                  className={`flex-1 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                    transportMode === "cycling"
+                      ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
+                      : "bg-slate-900 text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <Bike className="h-3.5 w-3.5" />
+                  <span>Cycle</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Target Destination Pill */}
+            <div className="rounded-2xl border border-slate-800/80 bg-slate-950/60 p-3.5 flex flex-col justify-between">
+              <span className="text-[11px] font-semibold text-slate-400">Target Destination</span>
+              <div className="flex items-center justify-between gap-2 mt-1">
+                <div className="truncate">
+                  <div className="text-xs font-bold text-white truncate">
+                    {selectedDestination?.name || "No Destination Selected"}
+                  </div>
+                  <div className="text-[10px] text-slate-500">
+                    {selectedDestination
+                      ? `${selectedDestination.latitude.toFixed(4)}, ${selectedDestination.longitude.toFixed(4)}`
+                      : "Click 'Navigate' on any place card"}
+                  </div>
+                </div>
+                {selectedDestination && (
+                  <Badge className="bg-violet-500/20 text-violet-300 border-violet-500/30 text-[10px]">
+                    Selected
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            {/* Route Trigger Action */}
+            <div className="rounded-2xl border border-slate-800/80 bg-slate-950/60 p-3.5 flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-semibold text-slate-400">Live Navigation</span>
+                <div className="text-xs text-slate-300 mt-0.5">Calculate shortest path</div>
+              </div>
+              <Button
+                onClick={() => handleCalculateRoute()}
+                disabled={routeLoading || !selectedDestination}
+                className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium gap-1.5 shadow-md shadow-blue-600/20"
+              >
+                {routeLoading ? (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    <span>Routing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Navigation className="h-3.5 w-3.5" />
+                    <span>Calculate Route</span>
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {/* Active Route Summary Metrics */}
+          {routeData && routeData.route_status === "ready" && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 p-4 rounded-2xl border border-blue-500/30 bg-blue-500/10">
+              <div>
+                <div className="text-[10px] uppercase font-bold text-blue-300">Route Distance</div>
+                <div className="text-lg font-bold text-white mt-0.5">{routeData.distance_km} km</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase font-bold text-blue-300">Estimated Duration</div>
+                <div className="text-lg font-bold text-white mt-0.5">{routeData.duration_minutes} mins</div>
+              </div>
+              <div className="sm:text-right">
+                <div className="text-[10px] uppercase font-bold text-blue-300">Transit Mode</div>
+                <Badge className="mt-1 bg-blue-600 text-white font-semibold text-xs uppercase">
+                  {routeData.transport_mode}
+                </Badge>
+              </div>
+            </div>
+          )}
+
+          {/* Interactive Map Component */}
+          <TripMap
+            userLocation={userLocation}
+            destinationLocation={selectedDestination}
+            routeGeometry={routeData?.geometry}
+            places={recommendations.filter(
+              (r) => typeof r.latitude === "number" && typeof r.longitude === "number"
+            ).map((r) => ({
+              name: r.name,
+              latitude: r.latitude!,
+              longitude: r.longitude!,
+              category: r.category,
+            }))}
+            onSelectDestination={(p) => {
+              setSelectedDestination(p);
+              if (userLocation) {
+                handleCalculateRoute(p);
+              }
+            }}
+            className="h-[420px] w-full rounded-2xl border border-slate-800 shadow-inner"
+          />
+        </div>
       </div>
     </div>
   );
 }
+
 
 
 

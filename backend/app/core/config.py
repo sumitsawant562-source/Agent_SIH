@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     OPENWEATHER_BASE_URL: str = "https://api.openweathermap.org/data/2.5"
     OPENWEATHER_GEO_URL: str = "http://api.openweathermap.org/geo/1.0"
 
+    # Routing Configuration (Backend Only - NEVER expose to frontend)
+    OPENROUTESERVICE_API_KEY: str = ""
+    OPENROUTESERVICE_BASE_URL: str = "https://api.openrouteservice.org/v2"
+    OSRM_BASE_URL: str = "https://router.project-osrm.org"
+
     # CORS Configuration
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
 

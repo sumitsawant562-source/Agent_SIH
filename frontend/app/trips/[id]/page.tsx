@@ -7,7 +7,9 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { api } from "@/lib/api";
 import { Trip } from "@/types/trip";
 import {
+  AlternativePlaceItem,
   CoordinatePoint,
+  CrowdData,
   DestinationRecommendationItem,
   ItineraryData,
   ItineraryDay,
@@ -62,6 +64,11 @@ import {
   Radio,
   Footprints,
   Compass as CompassIcon,
+  Activity,
+  Gauge,
+  ShieldAlert,
+  Sliders,
+  UserCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -121,6 +128,14 @@ function TripDetailsContent() {
   const [routeLoading, setRouteLoading] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
   const [routeNotification, setRouteNotification] = useState<string | null>(null);
+
+  // Stage 9 Crowd Monitoring State
+  const [crowdData, setCrowdData] = useState<CrowdData | null>(null);
+  const [crowdLoading, setCrowdLoading] = useState(false);
+  const [crowdError, setCrowdError] = useState<string | null>(null);
+  const [crowdPlaceInput, setCrowdPlaceInput] = useState<string>("");
+  const [crowdCountInput, setCrowdCountInput] = useState<number>(45);
+  const [crowdCapacityInput, setCrowdCapacityInput] = useState<number>(100);
 
   useEffect(() => {
     if (!tripId) return;
@@ -304,6 +319,65 @@ function TripDetailsContent() {
     const mapSection = document.getElementById("live-navigation-section");
     if (mapSection) {
       mapSection.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
+  const handleEvaluateCrowd = async (
+    overridePlace?: string,
+    overrideCount?: number,
+    overrideCapacity?: number
+  ) => {
+    if (!tripId) return;
+
+    const targetPlace = (overridePlace || crowdPlaceInput || selectedDestination?.name || trip?.destination || "").trim();
+    if (!targetPlace) {
+      setCrowdError("Please enter or select a place/destination to monitor.");
+      return;
+    }
+
+    const count = typeof overrideCount === "number" ? overrideCount : crowdCountInput;
+    const capacity = typeof overrideCapacity === "number" ? overrideCapacity : crowdCapacityInput;
+
+    // Determine target coordinates from selected place, recommendations, or trip
+    let targetLat: number | null = null;
+    let targetLon: number | null = null;
+
+    if (selectedDestination && selectedDestination.name.toLowerCase() === targetPlace.toLowerCase()) {
+      targetLat = selectedDestination.latitude;
+      targetLon = selectedDestination.longitude;
+    } else {
+      const match = recommendations.find((r) => r.name.toLowerCase() === targetPlace.toLowerCase());
+      if (match && typeof match.latitude === "number" && typeof match.longitude === "number") {
+        targetLat = match.latitude;
+        targetLon = match.longitude;
+      } else if ((trip as any)?.destination_latitude && (trip as any)?.destination_longitude) {
+        targetLat = (trip as any).destination_latitude;
+        targetLon = (trip as any).destination_longitude;
+      }
+    }
+
+    setCrowdLoading(true);
+    setCrowdError(null);
+
+    try {
+      const res = await api.startCrowdAgent(tripId, {
+        destination: targetPlace,
+        people_count: count,
+        capacity: capacity,
+        latitude: targetLat,
+        longitude: targetLon,
+        confidence: 0.95,
+        source: "simulated_detector",
+      });
+
+      if (res && res.data) {
+        setCrowdData(res.data);
+      }
+    } catch (err: any) {
+      console.error("Failed to evaluate crowd metrics:", err);
+      setCrowdError(err.message || "Failed to evaluate crowd levels.");
+    } finally {
+      setCrowdLoading(false);
     }
   };
 
@@ -1391,6 +1465,346 @@ function TripDetailsContent() {
                   </div>
                 );
               })()}
+            </div>
+          )}
+        </div>
+
+        {/* STAGE 9: CROWD MONITORING & OVERCROWDING AGENT SECTION */}
+        <div id="crowd-monitoring-section" className="rounded-3xl border border-slate-800 bg-slate-900/40 p-6 md:p-8 backdrop-blur-xl shadow-2xl relative overflow-hidden mt-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-6 mb-6">
+            <div>
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-rose-500 flex items-center justify-center shadow-lg shadow-rose-500/20">
+                  <Activity className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <span>Crowd Monitoring & Overcrowding Agent</span>
+                    <Badge variant="outline" className="border-rose-500/30 text-rose-400 bg-rose-500/10 text-xs">
+                      Stage 9 Agent
+                    </Badge>
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Real-time crowd intelligence, venue capacity thresholds, and AI-driven alternative rerouting
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Status Pill */}
+            {crowdData && (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-slate-800 bg-slate-950/70 text-xs">
+                <span
+                  className={`h-2.5 w-2.5 rounded-full ${
+                    crowdData.is_overcrowded
+                      ? "bg-rose-500 animate-ping"
+                      : crowdData.crowd_level === "HIGH"
+                      ? "bg-amber-500"
+                      : "bg-emerald-500"
+                  }`}
+                />
+                <span className="text-slate-300 font-semibold">
+                  {crowdData.destination}: {crowdData.crowd_level.replace(/_/g, " ")} ({crowdData.crowd_percentage}%)
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Crowd Error Callout */}
+          {crowdError && (
+            <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 mb-5 flex items-start gap-3 text-xs">
+              <AlertCircle className="h-4 w-4 text-rose-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <strong className="text-rose-200">Crowd Monitoring Notice:</strong>
+                <p className="text-rose-300 mt-0.5">{crowdError}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Controls Bar: Place selector & Detection Simulator */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+            {/* Target Place Input */}
+            <div className="rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4 flex flex-col justify-between">
+              <div>
+                <span className="text-[11px] font-semibold text-slate-400">Target Venue / Place</span>
+                <input
+                  type="text"
+                  placeholder={selectedDestination?.name || trip?.destination || "Enter place name (e.g. Baga Beach)"}
+                  value={crowdPlaceInput}
+                  onChange={(e) => setCrowdPlaceInput(e.target.value)}
+                  className="w-full mt-2 bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500"
+                />
+              </div>
+              <div className="flex items-center gap-1.5 mt-2 overflow-x-auto pb-1 text-[10px] text-slate-400">
+                <span>Quick pick:</span>
+                {recommendations.slice(0, 3).map((r, rIdx) => (
+                  <button
+                    key={rIdx}
+                    onClick={() => setCrowdPlaceInput(r.name)}
+                    className="truncate max-w-[110px] px-2 py-0.5 rounded bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition-colors"
+                  >
+                    {r.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* People Count & Presets */}
+            <div className="rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4 flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-slate-400">People Count (Sensor / CV)</span>
+                <span className="text-xs font-bold text-white">{crowdCountInput} people</span>
+              </div>
+              <div className="grid grid-cols-4 gap-1.5 mt-2">
+                <button
+                  onClick={() => setCrowdCountInput(25)}
+                  className={`py-1 rounded-lg text-[10px] font-semibold border transition-all ${
+                    crowdCountInput === 25
+                      ? "bg-emerald-500/20 border-emerald-500 text-emerald-300"
+                      : "bg-slate-900 border-slate-800 text-slate-400 hover:text-white"
+                  }`}
+                >
+                  Low (25)
+                </button>
+                <button
+                  onClick={() => setCrowdCountInput(55)}
+                  className={`py-1 rounded-lg text-[10px] font-semibold border transition-all ${
+                    crowdCountInput === 55
+                      ? "bg-blue-500/20 border-blue-500 text-blue-300"
+                      : "bg-slate-900 border-slate-800 text-slate-400 hover:text-white"
+                  }`}
+                >
+                  Med (55)
+                </button>
+                <button
+                  onClick={() => setCrowdCountInput(78)}
+                  className={`py-1 rounded-lg text-[10px] font-semibold border transition-all ${
+                    crowdCountInput === 78
+                      ? "bg-amber-500/20 border-amber-500 text-amber-300"
+                      : "bg-slate-900 border-slate-800 text-slate-400 hover:text-white"
+                  }`}
+                >
+                  High (78)
+                </button>
+                <button
+                  onClick={() => setCrowdCountInput(135)}
+                  className={`py-1 rounded-lg text-[10px] font-semibold border transition-all ${
+                    crowdCountInput === 135
+                      ? "bg-rose-500/20 border-rose-500 text-rose-300"
+                      : "bg-slate-900 border-slate-800 text-slate-400 hover:text-white"
+                  }`}
+                >
+                  Over (135)
+                </button>
+              </div>
+            </div>
+
+            {/* Action Trigger */}
+            <div className="rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4 flex flex-col justify-between">
+              <div>
+                <span className="text-[11px] font-semibold text-slate-400">Venue Capacity Limit</span>
+                <div className="text-xs text-slate-300 mt-1 font-semibold">{crowdCapacityInput} Persons</div>
+              </div>
+              <Button
+                onClick={() => handleEvaluateCrowd()}
+                disabled={crowdLoading}
+                className="w-full bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white text-xs font-semibold gap-1.5 shadow-md shadow-rose-600/20 mt-2"
+              >
+                {crowdLoading ? (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    <span>Evaluating Crowd...</span>
+                  </>
+                ) : (
+                  <>
+                    <Gauge className="h-3.5 w-3.5" />
+                    <span>Evaluate Crowd Level</span>
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {/* Crowd Results Section */}
+          {crowdData && (
+            <div className="space-y-5">
+              {/* Metrics Header Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="p-4 rounded-2xl border border-slate-800 bg-slate-950/60">
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Crowd Level</span>
+                  <div className="mt-1">
+                    <Badge
+                      className={`text-xs font-bold ${
+                        crowdData.crowd_level === "LOW"
+                          ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                          : crowdData.crowd_level === "MODERATE"
+                          ? "bg-blue-500/20 text-blue-300 border-blue-500/30"
+                          : crowdData.crowd_level === "HIGH"
+                          ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                          : "bg-rose-500/20 text-rose-300 border-rose-500/30"
+                      }`}
+                    >
+                      {crowdData.crowd_level.replace(/_/g, " ")}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl border border-slate-800 bg-slate-950/60">
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Occupancy</span>
+                  <div className="text-lg font-bold text-white mt-0.5">
+                    {crowdData.people_count} / {crowdData.capacity}
+                  </div>
+                  <div className="text-[10px] text-slate-400">({crowdData.crowd_percentage}%)</div>
+                </div>
+
+                <div className="p-4 rounded-2xl border border-slate-800 bg-slate-950/60">
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Safety Status</span>
+                  <div className="text-base font-bold text-white mt-0.5 flex items-center gap-1.5">
+                    {crowdData.is_overcrowded ? (
+                      <span className="text-rose-400 flex items-center gap-1">
+                        <ShieldAlert className="h-4 w-4" /> Overcrowded
+                      </span>
+                    ) : (
+                      <span className="text-emerald-400 flex items-center gap-1">
+                        <UserCheck className="h-4 w-4" /> {crowdData.crowd_status}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl border border-slate-800 bg-slate-950/60">
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Confidence</span>
+                  <div className="text-base font-bold text-white mt-0.5">
+                    {Math.round(crowdData.crowd_confidence * 100)}%
+                  </div>
+                  <div className="text-[10px] text-slate-500 capitalize">{crowdData.source?.replace(/_/g, " ")}</div>
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="p-4 rounded-2xl border border-slate-800/80 bg-slate-950/60">
+                <div className="flex justify-between items-center text-xs mb-1.5">
+                  <span className="text-slate-400 font-medium">Capacity Utilization</span>
+                  <span
+                    className={`font-bold ${
+                      crowdData.crowd_percentage > 100
+                        ? "text-rose-400"
+                        : crowdData.crowd_percentage > 70
+                        ? "text-amber-400"
+                        : "text-emerald-400"
+                    }`}
+                  >
+                    {crowdData.crowd_percentage}%
+                  </span>
+                </div>
+                <div className="w-full h-2.5 rounded-full bg-slate-800 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      crowdData.crowd_percentage > 100
+                        ? "bg-rose-500"
+                        : crowdData.crowd_percentage > 70
+                        ? "bg-amber-500"
+                        : "bg-emerald-500"
+                    }`}
+                    style={{ width: `${Math.min(crowdData.crowd_percentage, 100)}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Overcrowding Recommendation Banner */}
+              <div
+                className={`p-5 rounded-2xl border ${
+                  crowdData.is_overcrowded
+                    ? "border-rose-500/40 bg-rose-950/20 text-rose-200"
+                    : "border-emerald-500/30 bg-emerald-950/20 text-emerald-200"
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  {crowdData.is_overcrowded ? (
+                    <AlertTriangle className="h-5 w-5 text-rose-400 flex-shrink-0 mt-0.5" />
+                  ) : (
+                    <CheckCircle2 className="h-5 w-5 text-emerald-400 flex-shrink-0 mt-0.5" />
+                  )}
+                  <div>
+                    <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                      <span>Recommendation: {crowdData.recommendation}</span>
+                      {crowdData.is_overcrowded && (
+                        <Badge className="bg-rose-500 text-white font-bold text-[10px]">Overcrowding Alert</Badge>
+                      )}
+                    </h3>
+                    <p className="text-xs mt-1 leading-relaxed text-slate-300">
+                      {crowdData.ai_explanation ||
+                        `${crowdData.destination} is at ${crowdData.crowd_percentage}% capacity. ${crowdData.recommendation}.`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recommended Alternatives Carousel / Cards */}
+              {crowdData.alternative_places && crowdData.alternative_places.length > 0 && (
+                <div className="mt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-amber-400" />
+                      <span>Recommended Alternative Destinations</span>
+                    </h4>
+                    <span className="text-[11px] text-slate-400">
+                      Lower density alternatives nearby
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {crowdData.alternative_places.map((alt, aIdx) => (
+                      <div
+                        key={aIdx}
+                        className="rounded-2xl border border-slate-800/90 bg-slate-950/70 p-4 flex flex-col justify-between gap-3 hover:border-slate-700 transition-all shadow-md"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between gap-2">
+                            <h5 className="text-xs font-bold text-white truncate">{alt.name}</h5>
+                            <Badge className={getCategoryBadgeClass(alt.category) + " text-[10px]"}>
+                              {getCategoryLabel(alt.category)}
+                            </Badge>
+                          </div>
+
+                          <p className="text-[11px] text-slate-300 mt-2 line-clamp-2 leading-relaxed">
+                            {alt.why_recommended || alt.description}
+                          </p>
+
+                          <div className="flex flex-wrap items-center gap-2 mt-3 text-[10px] text-slate-400">
+                            {alt.distance_km !== null && alt.distance_km !== undefined && (
+                              <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-cyan-300 font-medium">
+                                📍 {alt.distance_km} km away
+                              </span>
+                            )}
+                            {alt.estimated_visit_duration && (
+                              <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300">
+                                ⏱️ {alt.estimated_visit_duration}
+                              </span>
+                            )}
+                            {alt.weather_suitability && (
+                              <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-emerald-300 font-medium">
+                                ⛅ {alt.weather_suitability}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-slate-800/80 flex items-center justify-end">
+                          <Button
+                            size="sm"
+                            onClick={() => handleNavigateToPlace(alt)}
+                            className="bg-blue-600 hover:bg-blue-500 text-white text-[11px] py-1 px-3 gap-1.5 shadow-sm"
+                          >
+                            <Navigation className="h-3 w-3" />
+                            <span>Navigate Here</span>
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

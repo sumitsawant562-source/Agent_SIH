@@ -80,6 +80,24 @@ class TravelState(TypedDict, total=False):
     route_status: Optional[str]
     route_error: Optional[str]
 
+    # Crowd Monitoring & Overcrowding (Stage 9)
+    crowd_count: Optional[int]
+    crowd_level: Optional[str]
+    crowd_score: Optional[float]
+    crowd_capacity: Optional[int]
+    crowd_percentage: Optional[float]
+    crowd_status: Optional[str]
+    crowd_source: Optional[str]
+    crowd_timestamp: Optional[str]
+    crowd_location: Optional[str]
+    crowd_latitude: Optional[float]
+    crowd_longitude: Optional[float]
+    is_overcrowded: Optional[bool]
+    crowd_recommendation: Optional[str]
+    alternative_places: Optional[List[Dict[str, Any]]]
+    crowd_confidence: Optional[float]
+    crowd_ai_explanation: Optional[str]
+
 
 def create_initial_travel_state(
     trip_id: str,
@@ -204,6 +222,22 @@ def create_initial_travel_state(
         route_transport_mode=data.get("route_transport_mode") or "driving",
         route_status=data.get("route_status") or "idle",
         route_error=data.get("route_error"),
+        crowd_count=data.get("crowd_count"),
+        crowd_level=data.get("crowd_level"),
+        crowd_score=data.get("crowd_score"),
+        crowd_capacity=data.get("crowd_capacity"),
+        crowd_percentage=data.get("crowd_percentage"),
+        crowd_status=data.get("crowd_status") or "idle",
+        crowd_source=data.get("crowd_source") or "simulated_detector",
+        crowd_timestamp=data.get("crowd_timestamp"),
+        crowd_location=data.get("crowd_location"),
+        crowd_latitude=data.get("crowd_latitude"),
+        crowd_longitude=data.get("crowd_longitude"),
+        is_overcrowded=data.get("is_overcrowded"),
+        crowd_recommendation=data.get("crowd_recommendation"),
+        alternative_places=data.get("alternative_places") or [],
+        crowd_confidence=data.get("crowd_confidence"),
+        crowd_ai_explanation=data.get("crowd_ai_explanation"),
     )
 
 

@@ -268,5 +268,62 @@ class RouteResponse(BaseModel):
     data: RouteData
 
 
+# ==============================================================================
+# Stage 9: Crowd Monitoring & Overcrowding Schemas
+# ==============================================================================
+
+
+class AlternativePlaceItem(BaseModel):
+    name: str = Field(..., description="Alternative place or venue name")
+    category: str = Field("nearby_place", description="Category of alternative place")
+    description: Optional[str] = Field(None, description="Place description")
+    why_recommended: str = Field(..., description="Reason for alternative recommendation")
+    estimated_visit_duration: Optional[str] = Field("1-2 hours", description="Estimated visit duration")
+    estimated_cost: Optional[float] = Field(0.0, description="Estimated entry or visit cost")
+    currency: str = Field("INR", description="Currency code")
+    latitude: Optional[float] = Field(None, description="Latitude coordinate")
+    longitude: Optional[float] = Field(None, description="Longitude coordinate")
+    distance_km: Optional[float] = Field(None, description="Distance from reference location in kilometers")
+    weather_suitability: Optional[str] = Field("Suitable", description="Weather compatibility note")
+    confidence: float = Field(0.9, ge=0.0, le=1.0, description="Confidence score")
+
+
+class CrowdStartRequest(BaseModel):
+    trip_id: str = Field(..., description="Unique UUID of the trip")
+    destination: Optional[str] = Field(None, description="Name of the place or attraction being monitored")
+    people_count: int = Field(..., ge=0, description="Observed/detected number of people at the location")
+    capacity: Optional[int] = Field(100, gt=0, description="Venue or area safe capacity limit")
+    latitude: Optional[float] = Field(None, ge=-90.0, le=90.0, description="Destination latitude coordinate")
+    longitude: Optional[float] = Field(None, ge=-180.0, le=180.0, description="Destination longitude coordinate")
+    confidence: Optional[float] = Field(0.95, ge=0.0, le=1.0, description="Detection confidence score")
+    source: Optional[str] = Field("simulated_detector", description="Detection source (e.g. simulated, camera, cv_model)")
+
+
+class CrowdData(BaseModel):
+    trip_id: str
+    destination: str
+    people_count: int = Field(..., ge=0, description="People detected")
+    capacity: int = Field(100, gt=0, description="Total capacity")
+    crowd_percentage: float = Field(..., ge=0.0, description="Percentage of capacity occupied")
+    crowd_level: str = Field(..., description="'LOW', 'MODERATE', 'HIGH', 'VERY_HIGH', or 'OVER_CROWDED'")
+    crowd_score: float = Field(..., ge=0.0, description="Normalized crowd metric score")
+    crowd_status: str = Field("Normal", description="'Normal', 'Busy', or 'Overcrowded'")
+    is_overcrowded: bool = Field(False, description="True if crowd level warrants alternatives")
+    crowd_confidence: float = Field(0.95, ge=0.0, le=1.0, description="Confidence in crowd estimation")
+    recommendation: str = Field(..., description="Deterministic action recommendation")
+    ai_explanation: Optional[str] = Field(None, description="Personalized AI explanation of crowd status")
+    alternative_places: List[AlternativePlaceItem] = Field(default_factory=list, description="Recommended alternative destinations")
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    source: Optional[str] = "simulated_detector"
+    timestamp: Optional[str] = None
+
+
+class CrowdResponse(BaseModel):
+    success: bool
+    data: CrowdData
+
+
+
 
 

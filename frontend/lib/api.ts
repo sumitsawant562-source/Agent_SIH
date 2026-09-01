@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase/client";
 import { Trip, TripCreateInput, TripUpdateInput } from "@/types/trip";
 import {
   CoordinatePoint,
+  CrowdResponse,
   DestinationResponse,
   ItineraryResponse,
   RequirementResponse,
@@ -229,4 +230,33 @@ export const api = {
       }),
     });
   },
+
+  // AI Crowd Monitoring & Overcrowding Agent (Stage 9)
+  async startCrowdAgent(
+    tripId: string,
+    params: {
+      destination?: string;
+      people_count: number;
+      capacity?: number;
+      latitude?: number | null;
+      longitude?: number | null;
+      confidence?: number;
+      source?: string;
+    }
+  ): Promise<CrowdResponse> {
+    return apiFetch<CrowdResponse>("/agent/crowd/start", {
+      method: "POST",
+      body: JSON.stringify({
+        trip_id: tripId,
+        destination: params.destination,
+        people_count: params.people_count,
+        capacity: params.capacity || 100,
+        latitude: params.latitude,
+        longitude: params.longitude,
+        confidence: params.confidence || 0.95,
+        source: params.source || "simulated_detector",
+      }),
+    });
+  },
 };
+

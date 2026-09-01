@@ -8,6 +8,7 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.security import AuthenticatedUser, get_current_user
+from app.graph.crowd_graph import run_crowd_graph
 from app.graph.destination_graph import run_destination_graph
 from app.graph.itinerary_graph import run_itinerary_graph
 from app.graph.requirement_graph import run_requirement_graph
@@ -15,7 +16,11 @@ from app.graph.route_graph import run_route_graph
 from app.graph.weather_graph import run_weather_graph
 from app.graph.state import create_initial_travel_state
 from app.schemas.agent import (
+    AlternativePlaceItem,
     CoordinatePoint,
+    CrowdData,
+    CrowdResponse,
+    CrowdStartRequest,
     CurrentWeather,
     DestinationRecommendationItem,
     DestinationResponse,
@@ -459,6 +464,90 @@ async def calculate_route(
             route_error=final_state.get("route_error"),
         ),
     )
+
+
+# ==============================================================================
+# Stage 9: Crowd Monitoring & Overcrowding Agent Endpoint
+# ==============================================================================
+
+
+@router.post(
+    "/crowd/start",
+    response_model=CrowdResponse,
+    summary="Start Crowd Monitoring & Overcrowding Evaluation",
+    description="Evaluates crowd levels at a target destination/place, calculates deterministic safety metrics, and recommends smart alternatives.",
+)
+async def start_crowd_agent(
+    req: CrowdStartRequest,
+    current_user: AuthenticatedUser = Depends(get_current_user),
+):
+    """
+    1. Authenticates the user.
+    2. Loads trip & enforces ownership (raises 401/403/404).
+    3. Initializes TravelState with crowd input parameters.
+    4. Executes 7-node Crowd LangGraph workflow.
+    5. Returns structured crowd metrics, overcrowding boolean, and ranked alternative destinations.
+    """
+    # 1 & 2: Load trip and enforce ownership
+    trip = await TripService.get_trip_by_id(current_user.id, req.trip_id)
+
+    target_destination = req.destination or trip.get("destination") or "Destination"
+
+    # 3: Initialize TravelState
+    state = create_initial_travel_state(
+        trip_id=req.trip_id,
+        user_id=current_user.id,
+        trip_data=trip,
+    )
+    state["crowd_location"] = target_destination
+    state["crowd_count"] = req.people_count
+    state["crowd_capacity"] = req.capacity or 100
+    state["crowd_latitude"] = req.latitude
+    state["crowd_longitude"] = req.longitude
+    state["crowd_confidence"] = req.confidence or 0.95
+    state["crowd_source"] = req.source or "simulated_detector"
+
+    # 4: Run crowd graph
+    try:
+        final_state = await run_crowd_graph(state)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to evaluate crowd metrics: {str(e)}",
+        )
+
+    # 5: Map alternative places cleanly into Pydantic models
+    raw_alts = final_state.get("alternative_places") or []
+    alt_models: List[AlternativePlaceItem] = []
+    for alt in raw_alts:
+        try:
+            alt_models.append(AlternativePlaceItem(**alt))
+        except Exception:
+            continue
+
+    return CrowdResponse(
+        success=True,
+        data=CrowdData(
+            trip_id=req.trip_id,
+            destination=target_destination,
+            people_count=final_state.get("crowd_count", req.people_count),
+            capacity=final_state.get("crowd_capacity", req.capacity or 100),
+            crowd_percentage=final_state.get("crowd_percentage", 0.0),
+            crowd_level=final_state.get("crowd_level", "LOW"),
+            crowd_score=final_state.get("crowd_score", 0.0),
+            crowd_status=final_state.get("crowd_status", "Normal"),
+            is_overcrowded=final_state.get("is_overcrowded", False),
+            crowd_confidence=final_state.get("crowd_confidence", req.confidence or 0.95),
+            recommendation=final_state.get("crowd_recommendation", "Visit"),
+            ai_explanation=final_state.get("crowd_ai_explanation"),
+            alternative_places=alt_models,
+            latitude=final_state.get("crowd_latitude"),
+            longitude=final_state.get("crowd_longitude"),
+            source=final_state.get("crowd_source", "simulated_detector"),
+            timestamp=final_state.get("crowd_timestamp"),
+        ),
+    )
+
 
 
 

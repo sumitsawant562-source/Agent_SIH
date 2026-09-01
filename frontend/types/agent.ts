@@ -222,6 +222,50 @@ export interface RouteResponse {
   data: RouteData;
 }
 
+// Stage 9: Crowd Monitoring & Overcrowding Interfaces
+export type CrowdLevel = "LOW" | "MODERATE" | "HIGH" | "VERY_HIGH" | "OVER_CROWDED";
+
+export interface AlternativePlaceItem {
+  name: string;
+  category: string;
+  description?: string | null;
+  why_recommended: string;
+  estimated_visit_duration?: string | null;
+  estimated_cost?: number | null;
+  currency?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  distance_km?: number | null;
+  weather_suitability?: string | null;
+  confidence?: number;
+}
+
+export interface CrowdData {
+  trip_id: string;
+  destination: string;
+  people_count: number;
+  capacity: number;
+  crowd_percentage: number;
+  crowd_level: CrowdLevel | string;
+  crowd_score: number;
+  crowd_status: "Normal" | "Busy" | "Overcrowded" | string;
+  is_overcrowded: boolean;
+  crowd_confidence: number;
+  recommendation: string;
+  ai_explanation?: string | null;
+  alternative_places: AlternativePlaceItem[];
+  latitude?: number | null;
+  longitude?: number | null;
+  source?: string | null;
+  timestamp?: string | null;
+}
+
+export interface CrowdResponse {
+  success: boolean;
+  data: CrowdData;
+}
+
+
 
 
 

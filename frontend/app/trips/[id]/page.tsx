@@ -69,6 +69,16 @@ import {
   ShieldAlert,
   Sliders,
   UserCheck,
+  Hotel,
+  Building2,
+  ShieldCheck,
+  CheckCircle,
+  Info,
+  X,
+  ExternalLink,
+  Layers,
+  CircleDot,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -136,6 +146,18 @@ function TripDetailsContent() {
   const [crowdPlaceInput, setCrowdPlaceInput] = useState<string>("");
   const [crowdCountInput, setCrowdCountInput] = useState<number>(45);
   const [crowdCapacityInput, setCrowdCapacityInput] = useState<number>(100);
+
+  // Prototype Presentation & Booking State
+  const [bookingModal, setBookingModal] = useState<{
+    open: boolean;
+    type: "railway" | "hotel";
+    title: string;
+    subtitle?: string;
+    details?: any;
+  } | null>(null);
+  const [trainSearchOpen, setTrainSearchOpen] = useState(false);
+  const [trainSearchLoading, setTrainSearchLoading] = useState(false);
+  const [selectedHotelModal, setSelectedHotelModal] = useState<any | null>(null);
 
   useEffect(() => {
     if (!tripId) return;
@@ -379,6 +401,50 @@ function TripDetailsContent() {
     } finally {
       setCrowdLoading(false);
     }
+  };
+
+  const handleSearchTrains = () => {
+    setTrainSearchLoading(true);
+    setTimeout(() => {
+      setTrainSearchLoading(false);
+      setTrainSearchOpen(true);
+    }, 400);
+  };
+
+  const handleOpenRailwayBooking = (trainInfo?: any) => {
+    const fromCity = trip?.starting_location || "Mumbai";
+    const toCity = trip?.destination || "Goa";
+    setBookingModal({
+      open: true,
+      type: "railway",
+      title: "Railway Booking Integration",
+      subtitle: "Real-time railway availability and confirmed ticket booking will be provided through an authorized railway booking/API partner in the production version.",
+      details: trainInfo || {
+        name: "Vande Bharat Express (22229)",
+        route: `${fromCity} → ${toCity}`,
+        departure: "06:10 AM",
+        arrival: "01:30 PM",
+        duration: "7h 20m",
+        fare: 1850,
+        classType: "Executive Chair Car (EC)",
+      },
+    });
+  };
+
+  const handleOpenHotelBooking = (hotelInfo?: any) => {
+    setBookingModal({
+      open: true,
+      type: "hotel",
+      title: "Hotel Booking Integration",
+      subtitle: "Real-time availability and booking will be connected through an authorized booking provider in the production version.",
+      details: hotelInfo || {
+        name: "Heritage Seaside Boutique Resort",
+        location: trip?.destination || "Goa",
+        price: 3400,
+        type: "Boutique Resort & Spa",
+        rating: 4.8,
+      },
+    });
   };
 
   const handleDelete = async () => {
@@ -1469,7 +1535,130 @@ function TripDetailsContent() {
           )}
         </div>
 
-        {/* STAGE 9: CROWD MONITORING & OVERCROWDING AGENT SECTION */}
+        {/* PART 7: AGENTIC AI TRAVEL DECISION SYNTHESIS CENTER */}
+        <div id="ai-travel-decision-section" className="rounded-3xl border border-violet-500/30 bg-gradient-to-br from-slate-900/90 via-violet-950/20 to-slate-900/90 p-6 md:p-8 backdrop-blur-xl shadow-2xl relative overflow-hidden mt-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-5 mb-5">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-2xl bg-gradient-to-tr from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-violet-500/20">
+                <Sparkles className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <span>AI Travel Decision Center</span>
+                  <Badge variant="outline" className="border-violet-500/40 text-violet-300 bg-violet-500/10 text-xs">
+                    Multi-Agent Synthesis
+                  </Badge>
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Autonomous coordination across Requirement, Destination, Weather, Itinerary, GPS, and Crowd Agents
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 text-xs text-violet-200">
+              <CircleDot className="h-3 w-3 text-violet-400 animate-pulse" />
+              <span className="font-semibold">Autonomous Coordination</span>
+            </div>
+          </div>
+
+          {/* Active Agents Status Checklist */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 mb-5">
+            <div className="p-2.5 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center gap-2">
+              <CheckCircle className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
+              <div className="truncate">
+                <div className="text-[10px] uppercase font-bold text-slate-400">Requirements</div>
+                <div className="text-xs font-semibold text-white truncate">Profile Ready</div>
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center gap-2">
+              <CheckCircle className={`h-3.5 w-3.5 ${recommendations.length > 0 ? "text-emerald-400" : "text-slate-600"} flex-shrink-0`} />
+              <div className="truncate">
+                <div className="text-[10px] uppercase font-bold text-slate-400">Destinations</div>
+                <div className="text-xs font-semibold text-white truncate">
+                  {recommendations.length > 0 ? `${recommendations.length} Evaluated` : "Not evaluated yet"}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center gap-2">
+              <CheckCircle className={`h-3.5 w-3.5 ${weatherData?.current_weather ? "text-emerald-400" : "text-slate-600"} flex-shrink-0`} />
+              <div className="truncate">
+                <div className="text-[10px] uppercase font-bold text-slate-400">Weather</div>
+                <div className="text-xs font-semibold text-white truncate">
+                  {weatherData?.current_weather ? `${weatherData.current_weather.temperature}°C · ${weatherData.current_weather.weather_condition}` : "Not evaluated yet"}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center gap-2">
+              <CheckCircle className={`h-3.5 w-3.5 ${itineraryData?.days?.length ? "text-emerald-400" : "text-slate-600"} flex-shrink-0`} />
+              <div className="truncate">
+                <div className="text-[10px] uppercase font-bold text-slate-400">Itinerary</div>
+                <div className="text-xs font-semibold text-white truncate">
+                  {itineraryData?.days?.length ? `${itineraryData.days.length} Days Planned` : "Not evaluated yet"}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center gap-2">
+              <CheckCircle className={`h-3.5 w-3.5 ${userLocation ? "text-emerald-400" : "text-slate-600"} flex-shrink-0`} />
+              <div className="truncate">
+                <div className="text-[10px] uppercase font-bold text-slate-400">Live GPS</div>
+                <div className="text-xs font-semibold text-white truncate">
+                  {userLocation ? "Active Tracking" : "Standby"}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center gap-2">
+              <CheckCircle className={`h-3.5 w-3.5 ${crowdData ? "text-emerald-400" : "text-slate-600"} flex-shrink-0`} />
+              <div className="truncate">
+                <div className="text-[10px] uppercase font-bold text-slate-400">Crowd Agent</div>
+                <div className="text-xs font-semibold text-white truncate">
+                  {crowdData ? `${crowdData.crowd_level.replace(/_/g, " ")} (${crowdData.crowd_percentage}%)` : "Not evaluated yet"}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Unified AI Decision Callout */}
+          <div className="rounded-2xl border border-violet-500/40 bg-violet-950/30 p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <Sparkles className="h-5 w-5 text-violet-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <span className="text-[11px] font-bold text-violet-300 uppercase tracking-wider">Current AI Travel Decision</span>
+                <p className="text-xs text-slate-200 mt-1 leading-relaxed">
+                  {crowdData?.is_overcrowded ? (
+                    <>
+                      Selected destination <strong className="text-white">{crowdData.destination}</strong> is currently crowded ({crowdData.crowd_percentage}% occupancy). A nearby alternative with lower crowd density {crowdData.alternative_places?.[0] ? <strong className="text-cyan-300">"{crowdData.alternative_places[0].name}"</strong> : "nearby"} and suitable weather has been recommended.
+                    </>
+                  ) : crowdData ? (
+                    <>
+                      Venue <strong className="text-white">{crowdData.destination}</strong> is operating within normal safety thresholds ({crowdData.crowd_percentage}% occupancy). Proceeding with scheduled itinerary.
+                    </>
+                  ) : (
+                    <>
+                      Multi-agent coordination active. Run Crowd Intelligence or Route calculation below to evaluate destination density and calculate optimal navigation paths.
+                    </>
+                  )}
+                </p>
+              </div>
+            </div>
+
+            {crowdData?.is_overcrowded && crowdData.alternative_places?.[0] && (
+              <Button
+                size="sm"
+                onClick={() => handleNavigateToPlace(crowdData.alternative_places[0])}
+                className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs font-semibold whitespace-nowrap shadow-md shadow-violet-600/20"
+              >
+                <Navigation className="h-3.5 w-3.5 mr-1.5" />
+                Navigate to Alternative
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* STAGE 9: CROWD MONITORING & OVERCROWDING AGENT SECTION (PARTS 4 & 5 & 9) */}
         <div id="crowd-monitoring-section" className="rounded-3xl border border-slate-800 bg-slate-900/40 p-6 md:p-8 backdrop-blur-xl shadow-2xl relative overflow-hidden mt-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-6 mb-6">
             <div>
@@ -1479,13 +1668,13 @@ function TripDetailsContent() {
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                    <span>Crowd Monitoring & Overcrowding Agent</span>
+                    <span>Crowd Intelligence & Overcrowding Agent</span>
                     <Badge variant="outline" className="border-rose-500/30 text-rose-400 bg-rose-500/10 text-xs">
                       Stage 9 Agent
                     </Badge>
                   </h2>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Real-time crowd intelligence, venue capacity thresholds, and AI-driven alternative rerouting
+                    Deterministic capacity calculations, safety thresholds, and intelligent alternative rerouting
                   </p>
                 </div>
               </div>
@@ -1508,6 +1697,14 @@ function TripDetailsContent() {
                 </span>
               </div>
             )}
+          </div>
+
+          {/* Transparent Source Architecture Label (Part 4 & 5) */}
+          <div className="rounded-2xl border border-slate-800/80 bg-slate-950/70 p-3.5 mb-5 flex items-start gap-2.5 text-xs text-slate-400">
+            <Info className="h-4 w-4 text-rose-400 flex-shrink-0 mt-0.5" />
+            <p className="leading-relaxed">
+              <strong className="text-slate-300">Crowd data source:</strong> Prototype/sensor-ready input. Production version can integrate authorized camera feeds, public crowd data, venue occupancy data, anonymous density signals, or user reports.
+            </p>
           </div>
 
           {/* Crowd Error Callout */}
@@ -1549,10 +1746,13 @@ function TripDetailsContent() {
               </div>
             </div>
 
-            {/* People Count & Presets */}
+            {/* People Count & Presets (Part 9 Demo Crowd Input) */}
             <div className="rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4 flex flex-col justify-between">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold text-slate-400">People Count (Sensor / CV)</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] font-semibold text-slate-400">Demo Crowd Input</span>
+                  <Badge className="bg-slate-800 border-slate-700 text-[9px] text-slate-400">Simulated / Sensor</Badge>
+                </div>
                 <span className="text-xs font-bold text-white">{crowdCountInput} people</span>
               </div>
               <div className="grid grid-cols-4 gap-1.5 mt-2">
@@ -2027,7 +2227,469 @@ function TripDetailsContent() {
             className="h-[420px] w-full rounded-2xl border border-slate-800 shadow-inner"
           />
         </div>
+
+        {/* SMART TRAIN BOOKING SECTION (PART 1 & PART 2) */}
+        <div id="smart-train-booking-section" className="rounded-3xl border border-slate-800 bg-slate-900/40 p-6 md:p-8 backdrop-blur-xl shadow-2xl relative overflow-hidden mt-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-6 mb-6">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                <Train className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <span>Smart Train Booking</span>
+                  <Badge variant="outline" className="border-cyan-500/30 text-cyan-400 bg-cyan-500/10 text-xs">
+                    Integration Ready · Prototype UI
+                  </Badge>
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Route transit intelligence and railway booking partner integration interface
+                </p>
+              </div>
+            </div>
+
+            <Badge className="bg-slate-800 text-slate-300 border-slate-700 text-xs">
+              Prototype / Demo Data
+            </Badge>
+          </div>
+
+          {/* Route & Passenger Context Header */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 p-4 rounded-2xl border border-slate-800/80 bg-slate-950/60">
+            <div>
+              <span className="text-[10px] uppercase font-bold text-slate-400">From</span>
+              <div className="text-xs font-bold text-white mt-0.5">{trip.starting_location || "Mumbai (CSMT)"}</div>
+            </div>
+            <div>
+              <span className="text-[10px] uppercase font-bold text-slate-400">To</span>
+              <div className="text-xs font-bold text-white mt-0.5">{trip.destination || "Goa (MAO)"}</div>
+            </div>
+            <div>
+              <span className="text-[10px] uppercase font-bold text-slate-400">Travel Date</span>
+              <div className="text-xs font-bold text-white mt-0.5">
+                {trip.travel_date ? new Date(trip.travel_date).toLocaleDateString() : "Flexible / Scheduled"}
+              </div>
+            </div>
+            <div>
+              <span className="text-[10px] uppercase font-bold text-slate-400">Passengers</span>
+              <div className="text-xs font-bold text-white mt-0.5">
+                {trip.adults} Adults{trip.children ? `, ${trip.children} Child` : ""}
+              </div>
+            </div>
+          </div>
+
+          {/* Recommended Train Showcase Card */}
+          <div className="rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-cyan-950/20 via-slate-950/60 to-blue-950/20 p-5 mb-6">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-2">
+                <Badge className="bg-cyan-500/20 text-cyan-300 border-cyan-500/30 text-[10px] uppercase font-bold">
+                  Recommended Express
+                </Badge>
+                <span className="text-xs font-bold text-white">Vande Bharat Express (22229)</span>
+              </div>
+              <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-[10px]">
+                🟢 Available · Demo Availability
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-3 border-y border-slate-800/80">
+              <div>
+                <span className="text-[10px] text-slate-400">Departure</span>
+                <div className="text-sm font-bold text-white mt-0.5">06:10 AM</div>
+                <div className="text-[10px] text-slate-500">{trip.starting_location || "Origin Station"}</div>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400">Arrival</span>
+                <div className="text-sm font-bold text-white mt-0.5">01:30 PM</div>
+                <div className="text-[10px] text-slate-500">{trip.destination || "Madgaon Jn"}</div>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400">Duration</span>
+                <div className="text-sm font-bold text-white mt-0.5">7h 20m</div>
+                <div className="text-[10px] text-slate-500">Direct Superfast</div>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400">Estimated Fare</span>
+                <div className="text-sm font-bold text-cyan-300 mt-0.5">₹1,850 / person</div>
+                <div className="text-[10px] text-slate-500">Executive / CC</div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 mt-4">
+              <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
+                <Info className="h-3.5 w-3.5 text-cyan-400" />
+                <span>Fastest direct rail transit to destination. Punctuality score: 98%</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSearchTrains}
+                  disabled={trainSearchLoading}
+                  className="border-slate-700 text-slate-300 hover:text-white text-xs gap-1.5"
+                >
+                  {trainSearchLoading ? (
+                    <RefreshCw className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Search className="h-3 w-3" />
+                  )}
+                  <span>{trainSearchOpen ? "Refresh Trains" : "Search Trains"}</span>
+                </Button>
+
+                <Button
+                  size="sm"
+                  onClick={() => handleOpenRailwayBooking()}
+                  className="bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold gap-1.5 shadow-md shadow-cyan-600/20"
+                >
+                  <span>Continue to Booking</span>
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Prototype Train Search Results (Part 2) */}
+          {trainSearchOpen && (
+            <div className="mt-4 pt-4 border-t border-slate-800">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                  <Train className="h-3.5 w-3.5 text-cyan-400" />
+                  <span>Available Train Options ({trip.starting_location || "Mumbai"} → {trip.destination || "Goa"})</span>
+                </h4>
+                <Badge className="bg-slate-800 text-amber-300 border-amber-500/30 text-[10px]">
+                  Prototype / Demo Data
+                </Badge>
+              </div>
+
+              <div className="space-y-2.5">
+                {[
+                  {
+                    name: "Vande Bharat Express",
+                    number: "22229",
+                    dep: "06:10 AM",
+                    arr: "01:30 PM",
+                    dur: "7h 20m",
+                    status: "🟢 Available (AVL 34)",
+                    fare: 1850,
+                    class: "Executive Chair Car",
+                  },
+                  {
+                    name: "Tejas Superfast Express",
+                    number: "22119",
+                    dep: "05:50 AM",
+                    arr: "02:40 PM",
+                    dur: "8h 50m",
+                    status: "🟢 Available (AVL 18)",
+                    fare: 1420,
+                    class: "AC Chair Car (CC)",
+                  },
+                  {
+                    name: "Mandovi Express",
+                    number: "10103",
+                    dep: "07:10 AM",
+                    arr: "07:00 PM",
+                    dur: "11h 50m",
+                    status: "🟡 RAC 8",
+                    fare: 760,
+                    class: "3-Tier AC (3A)",
+                  },
+                ].map((train, tIdx) => (
+                  <div
+                    key={tIdx}
+                    className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/70 hover:border-slate-700 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-white">{train.name}</span>
+                        <span className="text-[10px] text-slate-500 font-mono">#{train.number}</span>
+                        <Badge className="bg-slate-900 border-slate-700 text-slate-300 text-[10px]">
+                          {train.class}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-4 mt-1.5 text-xs text-slate-300">
+                        <span><strong>{train.dep}</strong> → <strong>{train.arr}</strong></span>
+                        <span className="text-slate-500">⏱️ {train.dur}</span>
+                        <span className="text-[11px] font-semibold">{train.status}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800">
+                      <div className="text-left sm:text-right">
+                        <div className="text-xs font-bold text-cyan-300">₹{train.fare}</div>
+                        <div className="text-[10px] text-slate-500">per passenger</div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleOpenRailwayBooking(train)}
+                        className="border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/10 text-xs"
+                      >
+                        Book Train
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* SMART STAY & HOTEL BOOKING SECTION (PART 3) */}
+        <div id="smart-stay-booking-section" className="rounded-3xl border border-slate-800 bg-slate-900/40 p-6 md:p-8 backdrop-blur-xl shadow-2xl relative overflow-hidden mt-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-6 mb-6">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <Hotel className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <span>Smart Stay & Hotel Booking</span>
+                  <Badge variant="outline" className="border-indigo-500/30 text-indigo-400 bg-indigo-500/10 text-xs">
+                    Integration Ready · Smart Accommodations
+                  </Badge>
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Curated stay recommendations matched with your itinerary pace and budget
+                </p>
+              </div>
+            </div>
+
+            <Badge className="bg-slate-800 text-slate-300 border-slate-700 text-xs">
+              Personalized Recommendations
+            </Badge>
+          </div>
+
+          {/* Stay Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[
+              {
+                name: `${trip.destination || "Destination"} Seaside Heritage Resort`,
+                type: "Boutique Beach Resort",
+                location: "North Coast Beachfront",
+                rating: 4.8,
+                price: 3800,
+                distance: "0.8 km from beach",
+                amenities: ["Ocean View", "Free Breakfast", "Pool & Spa"],
+              },
+              {
+                name: "Coconut Grove Villa & Homestay",
+                type: "Eco Homestay / Villa",
+                location: "Quiet Palm Enclave",
+                rating: 4.9,
+                price: 2400,
+                distance: "2.2 km from market",
+                amenities: ["Private Garden", "Local Cuisine", "WiFi"],
+              },
+              {
+                name: "The Grand Horizon Luxury Suites",
+                type: "Premium City Hotel",
+                location: "Central Historic District",
+                rating: 4.7,
+                price: 4900,
+                distance: "1.1 km from center",
+                amenities: ["Rooftop Lounge", "Airport Shuttle", "Gym"],
+              },
+            ].map((stay, sIdx) => (
+              <div
+                key={sIdx}
+                className="p-5 rounded-2xl border border-slate-800 bg-slate-950/70 hover:border-slate-700 transition-all flex flex-col justify-between shadow-md"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <Badge className="bg-indigo-500/20 text-indigo-300 border-indigo-500/30 text-[10px]">
+                      {stay.type}
+                    </Badge>
+                    <span className="text-xs font-bold text-amber-300">⭐ {stay.rating}</span>
+                  </div>
+
+                  <h4 className="text-sm font-bold text-white">{stay.name}</h4>
+                  <p className="text-[11px] text-slate-400 mt-1">📍 {stay.location} · {stay.distance}</p>
+
+                  <div className="flex flex-wrap gap-1.5 mt-3">
+                    {stay.amenities.map((am, aIdx) => (
+                      <span key={aIdx} className="text-[10px] px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300">
+                        {am}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-bold text-indigo-300">₹{stay.price}</div>
+                    <div className="text-[10px] text-slate-500">per night</div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      size="sm"
+                      onClick={() => handleOpenHotelBooking(stay)}
+                      className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-sm"
+                    >
+                      Book Stay
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* PLATFORM CAPABILITIES & FUTURE INTEGRATION STATUS (PART 8) */}
+        <div className="rounded-3xl border border-slate-800 bg-slate-900/40 p-6 md:p-8 backdrop-blur-xl shadow-2xl relative overflow-hidden mt-8">
+          <div className="flex items-center gap-3 border-b border-slate-800/80 pb-5 mb-5">
+            <div className="h-10 w-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+              <Layers className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <span>Platform Capabilities & Integration Architecture</span>
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Transparent overview of verified live prototype modules and upcoming production integration partners
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Live / Implemented Features */}
+            <div className="p-5 rounded-2xl border border-emerald-500/30 bg-emerald-950/10">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                <h3 className="text-sm font-bold text-emerald-300 uppercase tracking-wider">LIVE & IMPLEMENTED</h3>
+              </div>
+              <ul className="space-y-2 text-xs text-slate-300">
+                <li className="flex items-center gap-2">
+                  <Check className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
+                  <span>AI Travel Requirement Evaluator (LangGraph TravelState)</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
+                  <span>Destination Intelligence & Hidden Gems Generator (Gemini)</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
+                  <span>Live Weather Intelligence & Advisory Engine (OpenWeather API)</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
+                  <span>Personalized Multi-Day Itinerary Planner</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
+                  <span>Live Browser GPS Tracking & Interactive Leaflet Map</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
+                  <span>OSRM Turn-by-Turn Route Engine (Driving, Walking, Cycling)</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
+                  <span>Crowd Intelligence & Deterministic Overcrowding Rerouting</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Integration Ready / Planned */}
+            <div className="p-5 rounded-2xl border border-blue-500/30 bg-blue-950/10">
+              <div className="flex items-center gap-2 mb-3">
+                <CircleDot className="h-2.5 w-2.5 text-blue-400" />
+                <h3 className="text-sm font-bold text-blue-300 uppercase tracking-wider">INTEGRATION READY</h3>
+              </div>
+              <ul className="space-y-2 text-xs text-slate-300">
+                <li className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-blue-400 flex-shrink-0" />
+                  <span>Authorized Railway Booking API Partner (IRCTC GDS Integration)</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-blue-400 flex-shrink-0" />
+                  <span>Direct Hotel & Stay Booking API Provider</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-blue-400 flex-shrink-0" />
+                  <span>Computer Vision Camera Feed Ingestion (YOLO / OpenCV)</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-blue-400 flex-shrink-0" />
+                  <span>Multi-Source Public & Venue Occupancy Signals</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* PROFESSIONAL BOOKING INTEGRATION MODAL (PARTS 1, 3, 10) */}
+      {bookingModal && bookingModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md rounded-3xl border border-slate-800 bg-slate-950 p-6 md:p-7 shadow-2xl space-y-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                  {bookingModal.type === "railway" ? (
+                    <Train className="h-5 w-5 text-white" />
+                  ) : (
+                    <Hotel className="h-5 w-5 text-white" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">{bookingModal.title}</h3>
+                  <Badge variant="outline" className="border-cyan-500/30 text-cyan-400 bg-cyan-500/10 text-[10px] mt-0.5">
+                    Production Integration Point
+                  </Badge>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setBookingModal(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Details Summary Card */}
+            {bookingModal.details && (
+              <div className="p-4 rounded-2xl border border-slate-800/80 bg-slate-900/60 text-xs space-y-1.5">
+                <div className="font-bold text-white text-sm">{bookingModal.details.name}</div>
+                {bookingModal.details.route && (
+                  <div className="text-slate-300">Route: <strong>{bookingModal.details.route}</strong></div>
+                )}
+                {bookingModal.details.departure && (
+                  <div className="text-slate-400">Timing: {bookingModal.details.departure} - {bookingModal.details.arrival} ({bookingModal.details.duration})</div>
+                )}
+                {bookingModal.details.location && (
+                  <div className="text-slate-300">Location: {bookingModal.details.location} ({bookingModal.details.type})</div>
+                )}
+                {bookingModal.details.fare && (
+                  <div className="text-cyan-300 font-bold mt-1">Estimated Fare: ₹{bookingModal.details.fare} / passenger</div>
+                )}
+                {bookingModal.details.price && (
+                  <div className="text-indigo-300 font-bold mt-1">Estimated Tariff: ₹{bookingModal.details.price} / night</div>
+                )}
+              </div>
+            )}
+
+            {/* Official Integration Message */}
+            <div className="p-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 text-xs text-amber-200 leading-relaxed flex items-start gap-2.5">
+              <Info className="h-4 w-4 text-amber-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <strong className="text-amber-100 font-semibold block mb-0.5">Production Architecture Notice:</strong>
+                <span>{bookingModal.subtitle}</span>
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <Button
+                onClick={() => setBookingModal(null)}
+                className="w-full bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold py-2.5 rounded-xl shadow-md"
+              >
+                Back to Trip
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

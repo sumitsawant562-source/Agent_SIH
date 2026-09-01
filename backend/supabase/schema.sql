@@ -37,7 +37,8 @@ CREATE TABLE IF NOT EXISTS public.trips (
 
     -- Core trip details
     title                       TEXT NOT NULL,
-    start_location              TEXT NOT NULL,
+    start_location              TEXT,
+    starting_location           TEXT,
     start_latitude              DOUBLE PRECISION,
     start_longitude             DOUBLE PRECISION,
     destination                 TEXT NOT NULL,
@@ -47,7 +48,8 @@ CREATE TABLE IF NOT EXISTS public.trips (
     -- Scheduling
     start_date                  DATE,
     end_date                    DATE,
-    duration_days               INTEGER CHECK (duration_days > 0),
+    travel_date                 DATE,
+    duration_days               INTEGER DEFAULT 1 CHECK (duration_days > 0),
 
     -- Group
     travelers                   INTEGER DEFAULT 1 CHECK (travelers >= 1),
@@ -55,13 +57,15 @@ CREATE TABLE IF NOT EXISTS public.trips (
     children                    INTEGER DEFAULT 0 CHECK (children >= 0),
 
     -- Budget
-    budget                      NUMERIC CHECK (budget >= 0),
+    budget                      NUMERIC DEFAULT 0 CHECK (budget >= 0),
     currency                    TEXT DEFAULT 'INR',
 
     -- Preferences
-    transport_mode              TEXT,
-    food_preference             TEXT,
-    stay_preference             TEXT,
+    transport_mode              TEXT DEFAULT 'flight',
+    food_preference             TEXT DEFAULT 'no preference',
+    stay_preference             TEXT DEFAULT 'hotel',
+    accommodation_preference    TEXT DEFAULT 'hotel',
+    travel_style                TEXT DEFAULT 'balanced',
     interests                   JSONB DEFAULT '[]'::jsonb,
     special_requirements        TEXT,
 
@@ -76,8 +80,7 @@ CREATE TABLE IF NOT EXISTS public.trips (
 
 COMMENT ON TABLE public.trips IS 'Stores user travel configurations and preferences. Core entity for itinerary generation.';
 
--- Stage 2 migration columns: add any missing columns to an existing Stage 1 table.
--- These are safe no-ops on a fresh database since the columns already exist above.
+-- Idempotent column migrations for existing databases
 DO $$
 BEGIN
     -- Coordinate columns
@@ -93,6 +96,13 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='trips' AND column_name='destination_longitude') THEN
         ALTER TABLE public.trips ADD COLUMN destination_longitude DOUBLE PRECISION;
     END IF;
+    -- Location aliases
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='trips' AND column_name='start_location') THEN
+        ALTER TABLE public.trips ADD COLUMN start_location TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='trips' AND column_name='starting_location') THEN
+        ALTER TABLE public.trips ADD COLUMN starting_location TEXT;
+    END IF;
     -- Date columns
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='trips' AND column_name='start_date') THEN
         ALTER TABLE public.trips ADD COLUMN start_date DATE;
@@ -100,28 +110,72 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='trips' AND column_name='end_date') THEN
         ALTER TABLE public.trips ADD COLUMN end_date DATE;
     END IF;
-    -- Travelers
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='trips' AND column_name='travel_date') THEN
+        ALTER TABLE public.trips ADD COLUMN travel_date DATE;
+    END IF;
+    -- Travelers & Group
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='trips' AND column_name='travelers') THEN
         ALTER TABLE public.trips ADD COLUMN travelers INTEGER DEFAULT 1 CHECK (travelers >= 1);
     END IF;
-    -- Currency
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='trips' AND column_name='adults') THEN
+        ALTER TABLE public.trips ADD COLUMN adults INTEGER DEFAULT 1 CHECK (adults >= 1);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='trips' AND column_name='children') THEN
+        ALTER TABLE public.trips ADD COLUMN children INTEGER DEFAULT 0 CHECK (children >= 0);
+    END IF;
+    -- Currency & Budget
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='trips' AND column_name='currency') THEN
         ALTER TABLE public.trips ADD COLUMN currency TEXT DEFAULT 'INR';
     END IF;
-    -- Stay preference (Stage 1 used accommodation_preference)
+    -- Preferences & Style
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='trips' AND column_name='stay_preference') THEN
-        ALTER TABLE public.trips ADD COLUMN stay_preference TEXT;
+        ALTER TABLE public.trips ADD COLUMN stay_preference TEXT DEFAULT 'hotel';
     END IF;
-    -- Special requirements
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='trips' AND column_name='accommodation_preference') THEN
+        ALTER TABLE public.trips ADD COLUMN accommodation_preference TEXT DEFAULT 'hotel';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='trips' AND column_name='travel_style') THEN
+        ALTER TABLE public.trips ADD COLUMN travel_style TEXT DEFAULT 'balanced';
+    END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='trips' AND column_name='special_requirements') THEN
         ALTER TABLE public.trips ADD COLUMN special_requirements TEXT;
     END IF;
-    -- Rename starting_location → start_location if old column exists
-    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='trips' AND column_name='starting_location')
-       AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='trips' AND column_name='start_location') THEN
-        ALTER TABLE public.trips RENAME COLUMN starting_location TO start_location;
-    END IF;
 END $$;
+
+-- Trigger to keep column aliases in sync automatically
+CREATE OR REPLACE FUNCTION public.sync_trip_column_aliases()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.start_location IS NULL AND NEW.starting_location IS NOT NULL THEN
+        NEW.start_location := NEW.starting_location;
+    ELSIF NEW.starting_location IS NULL AND NEW.start_location IS NOT NULL THEN
+        NEW.starting_location := NEW.start_location;
+    END IF;
+
+    IF NEW.start_date IS NULL AND NEW.travel_date IS NOT NULL THEN
+        NEW.start_date := NEW.travel_date;
+    ELSIF NEW.travel_date IS NULL AND NEW.start_date IS NOT NULL THEN
+        NEW.travel_date := NEW.start_date;
+    END IF;
+
+    IF NEW.stay_preference IS NULL AND NEW.accommodation_preference IS NOT NULL THEN
+        NEW.stay_preference := NEW.accommodation_preference;
+    ELSIF NEW.accommodation_preference IS NULL AND NEW.stay_preference IS NOT NULL THEN
+        NEW.accommodation_preference := NEW.stay_preference;
+    END IF;
+
+    IF NEW.travelers IS NULL THEN
+        NEW.travelers := COALESCE(NEW.adults, 1) + COALESCE(NEW.children, 0);
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS tr_sync_trip_aliases ON public.trips;
+CREATE TRIGGER tr_sync_trip_aliases
+    BEFORE INSERT OR UPDATE ON public.trips
+    FOR EACH ROW EXECUTE PROCEDURE public.sync_trip_column_aliases();
 
 -- ==============================================================================
 -- 4. TABLE: itineraries

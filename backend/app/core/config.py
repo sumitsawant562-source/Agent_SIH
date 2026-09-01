@@ -29,13 +29,27 @@ class Settings(BaseSettings):
     OSRM_BASE_URL: str = "https://router.project-osrm.org"
 
     # CORS Configuration
-    ALLOWED_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
+    ALLOWED_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002"
 
     @property
     def cors_origins(self) -> List[str]:
+        default_dev_origins = [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://localhost:3001",
+            "http://127.0.0.1:3001",
+            "http://localhost:3002",
+            "http://127.0.0.1:3002",
+        ]
         if not self.ALLOWED_ORIGINS:
-            return ["*"]
-        return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
+            return default_dev_origins
+        configured = [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
+        # Merge configured origins with default development origins safely
+        merged: List[str] = []
+        for origin in configured + default_dev_origins:
+            if origin != "*" and origin not in merged:
+                merged.append(origin)
+        return merged or default_dev_origins
 
     model_config = SettingsConfigDict(
         env_file=(".env", "../.env"),

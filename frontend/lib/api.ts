@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase/client";
 import { Trip, TripCreateInput, TripUpdateInput } from "@/types/trip";
-import { DestinationResponse, RequirementResponse, WeatherResponse } from "@/types/agent";
+import { DestinationResponse, ItineraryResponse, RequirementResponse, WeatherResponse } from "@/types/agent";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -192,6 +192,14 @@ export const api = {
   // AI Weather Agent (Stage 6)
   async startWeatherAgent(tripId: string): Promise<WeatherResponse> {
     return apiFetch<WeatherResponse>("/agent/weather/start", {
+      method: "POST",
+      body: JSON.stringify({ trip_id: tripId }),
+    });
+  },
+
+  // AI Itinerary Planning Agent (Stage 7)
+  async startItineraryAgent(tripId: string): Promise<ItineraryResponse> {
+    return apiFetch<ItineraryResponse>("/agent/itinerary/start", {
       method: "POST",
       body: JSON.stringify({ trip_id: tripId }),
     });

@@ -163,3 +163,74 @@ class WeatherResponse(BaseModel):
     data: WeatherResponseData
 
 
+# ==============================================================================
+# Stage 7: Itinerary Planning Schemas
+# ==============================================================================
+
+
+class ItineraryActivityItem(BaseModel):
+    time_slot: str = Field(..., description="Slot: 'morning', 'afternoon', 'evening', or 'night'")
+    start_time: str = Field(..., description="Estimated start time in HH:MM format (e.g. '09:00')")
+    end_time: str = Field(..., description="Estimated end time in HH:MM format (e.g. '11:30')")
+    place_name: str = Field(..., description="Name of the visited place, attraction, or area")
+    category: str = Field("famous_place", description="Category tag")
+    description: str = Field(..., description="Details and context for the activity")
+    estimated_cost: float = Field(0.0, ge=0.0, description="Estimated activity or entry cost")
+    currency: str = Field("INR", description="Currency code (e.g. INR, USD)")
+    visit_duration_minutes: int = Field(120, ge=15, description="Estimated duration in minutes")
+    notes: Optional[str] = Field(None, description="Helpful tips, weather precautions, or travel suggestions")
+
+
+class ItineraryFoodRecommendation(BaseModel):
+    name: str = Field(..., description="Name of recommended restaurant, cafe, or dining area")
+    meal: str = Field(..., description="Meal type: 'breakfast', 'lunch', 'dinner', or 'snack'")
+    cuisine_type: Optional[str] = Field(None, description="Cuisine description (e.g. 'Goan Vegetarian', 'Seafood Cafe')")
+    estimated_cost: float = Field(0.0, ge=0.0, description="Estimated cost per person or meal")
+    currency: str = Field("INR", description="Currency code")
+    dietary_fit: Optional[str] = Field(None, description="Dietary fit (e.g. 'Pure Vegetarian', 'Vegan options')")
+
+
+class ItineraryDay(BaseModel):
+    day_number: int = Field(..., ge=1, description="Sequential day number (1, 2, ...)")
+    date: str = Field(..., description="Calendar date (YYYY-MM-DD)")
+    theme: str = Field(..., description="Thematic headline for the day (e.g. 'Heritage Walk & Sunset Beach')")
+    weather_summary: Optional[str] = Field(None, description="Weather forecast summary for this day")
+    activities: List[ItineraryActivityItem] = Field(default_factory=list, description="Scheduled activities")
+    food_recommendations: List[ItineraryFoodRecommendation] = Field(default_factory=list, description="Recommended dining")
+    estimated_day_cost: float = Field(0.0, ge=0.0, description="Sum of estimated activity and food costs for the day")
+    notes: Optional[str] = Field(None, description="Day-level transit, packing, or pacing advice")
+
+
+class ItineraryData(BaseModel):
+    trip_id: str
+    destination: str
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    duration_days: int = Field(..., ge=1)
+    total_estimated_cost: float = Field(0.0, ge=0.0)
+    budget: Optional[float] = None
+    currency: str = "INR"
+    budget_status: str = Field("within_budget", description="'within_budget', 'exceeds_budget', or 'unspecified'")
+    budget_warning: Optional[str] = None
+    weather_advisory: Optional[str] = None
+    days: List[ItineraryDay] = Field(default_factory=list)
+
+
+class ItineraryStartRequest(BaseModel):
+    trip_id: str = Field(..., description="Unique UUID of the trip")
+
+
+class ItineraryResponseData(BaseModel):
+    trip_id: str
+    destination: str
+    itinerary: Optional[ItineraryData] = None
+    itinerary_status: str = Field("ready", description="'ready', 'unavailable', or 'pending'")
+    itinerary_errors: List[str] = Field(default_factory=list)
+
+
+class ItineraryResponse(BaseModel):
+    success: bool
+    data: ItineraryResponseData
+
+
+

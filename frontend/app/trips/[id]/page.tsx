@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { api } from "@/lib/api";
 import { Trip } from "@/types/trip";
-import { DestinationRecommendationItem, WeatherResponseData } from "@/types/agent";
+import { DestinationRecommendationItem, ItineraryData, ItineraryDay, WeatherResponseData } from "@/types/agent";
 import {
   MapPin,
   Calendar,
@@ -44,6 +44,10 @@ import {
   Sunrise,
   Sunset,
   RefreshCw,
+  Route,
+  CalendarDays,
+  UtensilsCrossed,
+  AlertTriangle,
   Compass as CompassIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -78,6 +82,12 @@ function TripDetailsContent() {
   const [weatherData, setWeatherData] = useState<WeatherResponseData | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(false);
   const [weatherError, setWeatherError] = useState<string | null>(null);
+
+  // Stage 7 Itinerary Planning State
+  const [itineraryData, setItineraryData] = useState<ItineraryData | null>(null);
+  const [itineraryLoading, setItineraryLoading] = useState(false);
+  const [itineraryError, setItineraryError] = useState<string | null>(null);
+  const [selectedDay, setSelectedDay] = useState<number>(1);
 
   useEffect(() => {
     if (!tripId) return;
@@ -133,6 +143,26 @@ function TripDetailsContent() {
       setWeatherError(err.message || "Failed to fetch live weather information.");
     } finally {
       setWeatherLoading(false);
+    }
+  };
+
+  const handleFetchItinerary = async () => {
+    if (!tripId) return;
+    setItineraryLoading(true);
+    setItineraryError(null);
+    try {
+      const res = await api.startItineraryAgent(tripId);
+      if (res && res.data && res.data.itinerary) {
+        setItineraryData(res.data.itinerary);
+        setSelectedDay(1);
+      } else if (res && res.data && res.data.itinerary_errors.length > 0) {
+        setItineraryError(res.data.itinerary_errors[0]);
+      }
+    } catch (err: any) {
+      console.error("Failed to fetch itinerary:", err);
+      setItineraryError(err.message || "Failed to synthesize day-by-day itinerary.");
+    } finally {
+      setItineraryLoading(false);
     }
   };
 
@@ -890,9 +920,304 @@ function TripDetailsContent() {
             )}
           </div>
         )}
+
+        {/* STAGE 7: ITINERARY PLANNING AGENT SECTION */}
+        <div className="rounded-3xl border border-slate-800 bg-slate-900/40 p-6 md:p-8 backdrop-blur-xl shadow-2xl relative overflow-hidden mt-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-6 mb-6">
+            <div>
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-gradient-to-tr from-violet-500 to-indigo-500 flex items-center justify-center shadow-lg shadow-violet-500/20">
+                  <Route className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <span>Day-by-Day Itinerary & Schedule</span>
+                    <Badge variant="outline" className="border-violet-500/30 text-violet-400 bg-violet-500/10 text-xs">
+                      Stage 7 AI Agent
+                    </Badge>
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Personalized multi-day schedule adapted to real weather, budget, transit mode, and diet
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={handleFetchItinerary}
+                disabled={itineraryLoading}
+                className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-medium shadow-lg shadow-violet-600/20 transition-all gap-2"
+              >
+                {itineraryLoading ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin text-white" />
+                    <span>Synthesizing Itinerary...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 text-violet-200" />
+                    <span>{itineraryData ? "Regenerate Itinerary" : "Generate Itinerary"}</span>
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {itineraryError && (
+            <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 mb-6 flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-rose-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-semibold text-rose-200">Itinerary Generation Notice</h4>
+                <p className="text-xs text-rose-300 mt-0.5">{itineraryError}</p>
+              </div>
+            </div>
+          )}
+
+          {itineraryLoading && (
+            <div className="py-12 flex flex-col items-center justify-center gap-4 text-center">
+              <div className="h-12 w-12 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
+              <div>
+                <p className="text-sm font-semibold text-white">Synthesizing personalized daily schedules...</p>
+                <p className="text-xs text-slate-400 mt-1">Cross-referencing attractions, weather forecast, and budget constraints</p>
+              </div>
+            </div>
+          )}
+
+          {!itineraryLoading && !itineraryData && !itineraryError && (
+            <div className="py-12 flex flex-col items-center justify-center text-center max-w-md mx-auto">
+              <div className="h-14 w-14 rounded-3xl bg-slate-800/60 border border-slate-700 flex items-center justify-center mb-4">
+                <CalendarDays className="h-7 w-7 text-slate-400" />
+              </div>
+              <h3 className="text-base font-semibold text-white">Ready for Multi-Day Schedule Planning</h3>
+              <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
+                Click <strong className="text-violet-300">&quot;Generate Itinerary&quot;</strong> to synthesize an intelligent day-by-day plan combining your travel preferences, Stage 5 recommendations, and Stage 6 live weather conditions.
+              </p>
+              <Button
+                onClick={handleFetchItinerary}
+                className="mt-5 bg-violet-600 hover:bg-violet-500 text-white text-xs gap-2 font-medium"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>Generate Itinerary</span>
+              </Button>
+            </div>
+          )}
+
+          {!itineraryLoading && itineraryData && (
+            <div className="space-y-6">
+              {/* ITINERARY SUMMARY HEADER & BUDGET BAR */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4">
+                  <div className="text-xs text-slate-400">Total Duration</div>
+                  <div className="text-lg font-bold text-white mt-1">
+                    {itineraryData.duration_days} Days
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-0.5">
+                    {itineraryData.start_date} → {itineraryData.end_date}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4">
+                  <div className="text-xs text-slate-400">Total Estimated Cost</div>
+                  <div className="text-lg font-bold text-violet-400 mt-1">
+                    {itineraryData.currency} {Math.round(itineraryData.total_estimated_cost).toLocaleString()}
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-0.5">
+                    Budget: {itineraryData.budget ? `${itineraryData.currency} ${Math.round(itineraryData.budget).toLocaleString()}` : "Not specified"}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-800/80 bg-slate-950/60 p-4 flex flex-col justify-between">
+                  <div>
+                    <div className="text-xs text-slate-400">Budget Status</div>
+                    <div className="mt-1 flex items-center gap-2">
+                      {itineraryData.budget_status === "within_budget" ? (
+                        <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-xs">
+                          Within Target Budget
+                        </Badge>
+                      ) : itineraryData.budget_status === "exceeds_budget" ? (
+                        <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30 text-xs">
+                          Exceeds Stated Budget
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-slate-800 text-slate-300 text-xs">Budget Flexible</Badge>
+                      )}
+                    </div>
+                  </div>
+                  {itineraryData.budget_warning && (
+                    <p className="text-[10px] text-amber-300/80 mt-1">{itineraryData.budget_warning}</p>
+                  )}
+                </div>
+              </div>
+
+              {itineraryData.weather_advisory && (
+                <div className="rounded-2xl border border-sky-500/20 bg-sky-500/10 p-3.5 flex items-center gap-3 text-xs text-sky-200">
+                  <CloudSun className="h-5 w-5 text-sky-400 flex-shrink-0" />
+                  <span><strong>Meteorological Advisory:</strong> {itineraryData.weather_advisory}</span>
+                </div>
+              )}
+
+              {/* DAY TABS */}
+              <div className="flex gap-2 border-b border-slate-800 pb-3 overflow-x-auto scrollbar-thin scrollbar-thumb-slate-800">
+                {itineraryData.days.map((day) => {
+                  const isActive = selectedDay === day.day_number;
+                  return (
+                    <button
+                      key={day.day_number}
+                      onClick={() => setSelectedDay(day.day_number)}
+                      className={`px-4 py-2.5 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-2 ${
+                        isActive
+                          ? "bg-violet-600 text-white shadow-lg shadow-violet-600/25"
+                          : "bg-slate-900/80 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800/80"
+                      }`}
+                    >
+                      <Calendar className="h-3.5 w-3.5" />
+                      <span>Day {day.day_number}</span>
+                      <span className="text-[10px] opacity-75">({day.date.slice(5)})</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* ACTIVE DAY DETAILS */}
+              {(() => {
+                const day = itineraryData.days.find((d) => d.day_number === selectedDay) || itineraryData.days[0];
+                if (!day) return null;
+
+                return (
+                  <div className="space-y-6 pt-2">
+                    {/* Day Banner */}
+                    <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-violet-400 uppercase tracking-wider">Day {day.day_number} • {day.date}</span>
+                        </div>
+                        <h3 className="text-base font-bold text-white mt-0.5">{day.theme}</h3>
+                        {day.weather_summary && (
+                          <p className="text-xs text-cyan-300/90 mt-1 flex items-center gap-1.5">
+                            <CloudSun className="h-3.5 w-3.5 text-cyan-400" />
+                            <span>{day.weather_summary}</span>
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="text-right">
+                        <div className="text-[11px] text-slate-400">Day Estimated Cost</div>
+                        <div className="text-base font-bold text-emerald-400">
+                          {itineraryData.currency} {Math.round(day.estimated_day_cost).toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Activities Timeline */}
+                    <div className="space-y-3">
+                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                        <Clock className="h-3.5 w-3.5 text-violet-400" />
+                        <span>Scheduled Activities & Excursions</span>
+                      </h4>
+
+                      <div className="grid grid-cols-1 gap-3">
+                        {day.activities.map((act, actIdx) => (
+                          <div
+                            key={actIdx}
+                            className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 hover:border-slate-700 transition-all flex flex-col md:flex-row md:items-start justify-between gap-4"
+                          >
+                            <div className="space-y-1.5 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Badge className="bg-violet-500/20 text-violet-300 border-violet-500/30 text-[10px] uppercase font-bold">
+                                  {act.time_slot}
+                                </Badge>
+                                <span className="text-xs font-semibold text-slate-300">
+                                  {act.start_time} - {act.end_time}
+                                </span>
+                                <Badge variant="outline" className="border-slate-700 text-slate-400 text-[10px]">
+                                  {act.visit_duration_minutes} min
+                                </Badge>
+                              </div>
+
+                              <h5 className="text-sm font-bold text-white pt-1">{act.place_name}</h5>
+                              <p className="text-xs text-slate-400 leading-relaxed">{act.description}</p>
+
+                              {act.notes && (
+                                <p className="text-[11px] text-violet-300/80 italic pt-1">
+                                  💡 {act.notes}
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="md:text-right flex-shrink-0">
+                              <div className="text-[11px] text-slate-400">Estimated Cost</div>
+                              <div className="text-sm font-bold text-slate-200">
+                                {act.estimated_cost > 0
+                                  ? `${act.currency} ${Math.round(act.estimated_cost)}`
+                                  : "Free Entry"}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Food Recommendations */}
+                    {day.food_recommendations && day.food_recommendations.length > 0 && (
+                      <div className="space-y-3 pt-2">
+                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                          <UtensilsCrossed className="h-3.5 w-3.5 text-amber-400" />
+                          <span>Curated Dining & Food Recommendations</span>
+                        </h4>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {day.food_recommendations.map((food, fIdx) => (
+                            <div
+                              key={fIdx}
+                              className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-3.5 flex items-center justify-between gap-3"
+                            >
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30 text-[10px] uppercase font-bold">
+                                    {food.meal}
+                                  </Badge>
+                                  {food.dietary_fit && (
+                                    <span className="text-[10px] text-emerald-400 font-semibold">
+                                      🌱 {food.dietary_fit}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-xs font-bold text-white mt-1">{food.name}</div>
+                                {food.cuisine_type && (
+                                  <div className="text-[11px] text-slate-400">{food.cuisine_type}</div>
+                                )}
+                              </div>
+
+                              <div className="text-right">
+                                <div className="text-[10px] text-slate-400">Est. Meal Cost</div>
+                                <div className="text-xs font-bold text-amber-300">
+                                  {food.currency} {Math.round(food.estimated_cost)}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Day Notes */}
+                    {day.notes && (
+                      <div className="rounded-2xl border border-slate-800/60 bg-slate-950/40 p-3.5 text-xs text-slate-400 flex items-start gap-2.5">
+                        <Compass className="h-4 w-4 text-violet-400 flex-shrink-0 mt-0.5" />
+                        <span><strong>Day Advisory:</strong> {day.notes}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
+
 
 

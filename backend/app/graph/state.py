@@ -61,6 +61,11 @@ class TravelState(TypedDict, total=False):
     weather_status: Optional[str]
     weather_errors: Optional[List[str]]
 
+    # Itinerary planning (Stage 7)
+    itinerary: Optional[Dict[str, Any]]
+    itinerary_status: Optional[str]
+    itinerary_errors: Optional[List[str]]
+
 
 def create_initial_travel_state(
     trip_id: str,
@@ -170,5 +175,9 @@ def create_initial_travel_state(
         weather_insights=data.get("weather_insights") or [],
         weather_status=data.get("weather_status") or "pending",
         weather_errors=data.get("weather_errors") or [],
+        itinerary=data.get("itinerary"),
+        itinerary_status=data.get("itinerary_status") or "pending",
+        itinerary_errors=data.get("itinerary_errors") or [],
     )
+
 

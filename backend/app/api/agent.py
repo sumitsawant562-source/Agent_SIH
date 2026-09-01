@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.security import AuthenticatedUser, get_current_user
 from app.graph.destination_graph import run_destination_graph
+from app.graph.itinerary_graph import run_itinerary_graph
 from app.graph.requirement_graph import run_requirement_graph
 from app.graph.weather_graph import run_weather_graph
 from app.graph.state import create_initial_travel_state
@@ -19,6 +20,13 @@ from app.schemas.agent import (
     DestinationResponseData,
     DestinationStartRequest,
     ForecastItem,
+    ItineraryActivityItem,
+    ItineraryData,
+    ItineraryDay,
+    ItineraryFoodRecommendation,
+    ItineraryResponse,
+    ItineraryResponseData,
+    ItineraryStartRequest,
     PlaceWeatherItem,
     RequirementData,
     RequirementRespondRequest,
@@ -317,5 +325,80 @@ async def start_weather(
             weather_errors=weather_errors,
         ),
     )
+
+
+@router.post(
+    "/itinerary/start",
+    response_model=ItineraryResponse,
+    summary="Start Itinerary Planning Synthesis",
+    description="Synthesizes requirements, destination recommendations, and weather into a day-by-day travel itinerary.",
+)
+async def start_itinerary(
+    req: ItineraryStartRequest,
+    current_user: AuthenticatedUser = Depends(get_current_user),
+):
+    """
+    1. Authenticates user & verifies trip ownership.
+    2. Loads trip data & initializes TravelState.
+    3. Seamlessly populates destination & weather data if missing.
+    4. Runs Itinerary Graph pipeline.
+    5. Returns structured day-by-day itinerary with budget and weather insights.
+    """
+    # 1: Load trip and enforce ownership (raises 404/403 automatically)
+    trip = await TripService.get_trip_by_id(current_user.id, req.trip_id)
+
+    # 2: Initialize TravelState
+    state = create_initial_travel_state(
+        trip_id=req.trip_id,
+        user_id=current_user.id,
+        trip_data=trip,
+    )
+
+    # 3: If destination recommendations missing, run destination graph
+    if not state.get("destination_recommendations"):
+        try:
+            state = await run_destination_graph(state)
+        except Exception as dest_err:
+            pass  # Fallback handles sparse places
+
+    # 4: If weather information missing, run weather graph
+    if not state.get("weather_current"):
+        try:
+            state = await run_weather_graph(state)
+        except Exception as w_err:
+            pass
+
+    # 5: Run itinerary graph
+    try:
+        final_state = await run_itinerary_graph(state)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate itinerary: {str(e)}",
+        )
+
+    destination_name = final_state.get("destination") or trip.get("destination") or "Unknown"
+    itin_raw = final_state.get("itinerary")
+    itin_status = final_state.get("itinerary_status") or "ready"
+    itin_errors = final_state.get("itinerary_errors") or []
+
+    itin_model: Optional[ItineraryData] = None
+    if itin_raw:
+        try:
+            itin_model = ItineraryData(**itin_raw)
+        except Exception:
+            itin_model = None
+
+    return ItineraryResponse(
+        success=True,
+        data=ItineraryResponseData(
+            trip_id=req.trip_id,
+            destination=destination_name,
+            itinerary=itin_model,
+            itinerary_status=itin_status,
+            itinerary_errors=itin_errors,
+        ),
+    )
+
 
 

@@ -136,4 +136,67 @@ export interface WeatherResponse {
   data: WeatherResponseData;
 }
 
+// Stage 7: Itinerary Planning Interfaces
+export interface ItineraryActivityItem {
+  time_slot: "morning" | "afternoon" | "evening" | "night" | string;
+  start_time: string;
+  end_time: string;
+  place_name: string;
+  category: string;
+  description: string;
+  estimated_cost: number;
+  currency: string;
+  visit_duration_minutes: number;
+  notes?: string | null;
+}
+
+export interface ItineraryFoodRecommendation {
+  name: string;
+  meal: "breakfast" | "lunch" | "dinner" | "snack" | string;
+  cuisine_type?: string | null;
+  estimated_cost: number;
+  currency: string;
+  dietary_fit?: string | null;
+}
+
+export interface ItineraryDay {
+  day_number: number;
+  date: string;
+  theme: string;
+  weather_summary?: string | null;
+  activities: ItineraryActivityItem[];
+  food_recommendations: ItineraryFoodRecommendation[];
+  estimated_day_cost: number;
+  notes?: string | null;
+}
+
+export interface ItineraryData {
+  trip_id: string;
+  destination: string;
+  start_date?: string | null;
+  end_date?: string | null;
+  duration_days: number;
+  total_estimated_cost: number;
+  budget?: number | null;
+  currency: string;
+  budget_status: "within_budget" | "exceeds_budget" | "unspecified" | string;
+  budget_warning?: string | null;
+  weather_advisory?: string | null;
+  days: ItineraryDay[];
+}
+
+export interface ItineraryResponseData {
+  trip_id: string;
+  destination: string;
+  itinerary?: ItineraryData | null;
+  itinerary_status: "ready" | "unavailable" | "pending" | string;
+  itinerary_errors: string[];
+}
+
+export interface ItineraryResponse {
+  success: boolean;
+  data: ItineraryResponseData;
+}
+
+
 

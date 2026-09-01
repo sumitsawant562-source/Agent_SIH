@@ -109,6 +109,10 @@ async def budget_check(state: TravelState) -> Dict[str, Any]:
         itin["budget_status"] = "unspecified"
         itin["budget_warning"] = None
 
+    if itin.get("trip_summary") and isinstance(itin["trip_summary"], dict):
+        itin["trip_summary"]["budget_status"] = itin["budget_status"]
+        itin["trip_summary"]["estimated_total_cost"] = total_cost
+
     return {
         "itinerary": itin,
         "agent_status": "budget_checked",
@@ -122,12 +126,13 @@ async def weather_consistency_check(state: TravelState) -> Dict[str, Any]:
 
     itin = state.get("itinerary") or {}
     insights = state.get("weather_insights") or []
-    rain_alerts = [i for i in insights if i.get("type") == "rain_alert"]
+    rain_alerts = [i for i in insights if isinstance(i, dict) and i.get("type") == "rain_alert"]
 
     if rain_alerts:
         itin["weather_advisory"] = rain_alerts[0].get("message")
     elif insights:
-        itin["weather_advisory"] = insights[0].get("message")
+        first = insights[0]
+        itin["weather_advisory"] = first.get("message") if isinstance(first, dict) else str(first)
 
     return {
         "itinerary": itin,

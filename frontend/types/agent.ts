@@ -144,18 +144,29 @@ export interface ItineraryActivityItem {
   place_name: string;
   category: string;
   description: string;
+  what_to_do?: string | null;
+  why_recommended?: string | null;
   estimated_cost: number;
   currency: string;
   visit_duration_minutes: number;
+  visit_duration?: string | null;
+  travel_time_from_previous?: string | null;
+  transport_mode?: string | null;
+  practical_tips?: string | null;
+  is_indoor?: boolean | null;
+  weather_suitability?: string | null;
   notes?: string | null;
 }
 
 export interface ItineraryFoodRecommendation {
   name: string;
   meal: "breakfast" | "lunch" | "dinner" | "snack" | string;
+  restaurant_type?: string | null;
   cuisine_type?: string | null;
   estimated_cost: number;
   currency: string;
+  suggested_time?: string | null;
+  local_specialty?: string | null;
   dietary_fit?: string | null;
 }
 
@@ -163,9 +174,29 @@ export interface ItineraryDay {
   day_number: number;
   date: string;
   theme: string;
+  summary?: string | null;
   weather_summary?: string | null;
+  weather_note?: string | null;
+  morning?: { activities: ItineraryActivityItem[] } | null;
+  afternoon?: { activities: ItineraryActivityItem[] } | null;
+  evening?: { activities: ItineraryActivityItem[] } | null;
+  night?: { activities: ItineraryActivityItem[] } | null;
+  meals?: {
+    breakfast?: ItineraryFoodRecommendation | null;
+    lunch?: ItineraryFoodRecommendation | null;
+    snack?: ItineraryFoodRecommendation | null;
+    dinner?: ItineraryFoodRecommendation | null;
+  } | null;
   activities: ItineraryActivityItem[];
   food_recommendations: ItineraryFoodRecommendation[];
+  daily_budget?: {
+    food: number;
+    transport: number;
+    activities: number;
+    miscellaneous: number;
+    total: number;
+  } | null;
+  travel_tips?: string[];
   estimated_day_cost: number;
   notes?: string | null;
 }
@@ -177,11 +208,22 @@ export interface ItineraryData {
   end_date?: string | null;
   duration_days: number;
   total_estimated_cost: number;
+  cost_per_traveler?: number | null;
   budget?: number | null;
   currency: string;
-  budget_status: "within_budget" | "exceeds_budget" | "unspecified" | string;
+  budget_status: "within_budget" | "near_budget" | "exceeds_budget" | "unspecified" | string;
   budget_warning?: string | null;
   weather_advisory?: string | null;
+  trip_summary?: {
+    destination: string;
+    duration_days: number;
+    travel_style?: string;
+    estimated_total_cost?: number;
+    budget_status?: string;
+    cost_per_traveler?: number;
+  } | null;
+  overall_tips?: string[];
+  packing_suggestions?: string[];
   days: ItineraryDay[];
 }
 

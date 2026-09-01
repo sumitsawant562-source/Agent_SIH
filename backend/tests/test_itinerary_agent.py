@@ -468,3 +468,356 @@ def test_22_openapi_schema_contains_itinerary_endpoint():
     assert "/api/agent/itinerary/start" in paths
     assert "post" in paths["/api/agent/itinerary/start"]
 
+
+def test_23_single_day_trip():
+    """Verify 1-day itinerary synthesis with complete morning, afternoon, evening, meals, and budget."""
+    state = create_initial_travel_state(
+        trip_id="trip-23",
+        user_id="user-23",
+        trip_data={
+            "destination": "Agra",
+            "start_date": "2026-11-15",
+            "duration_days": 1,
+            "budget": 8000.0,
+            "currency": "INR",
+            "food_preference": "vegetarian",
+        },
+    )
+    fallback = ItineraryAgent.generate_fallback_itinerary(state)
+    assert fallback["duration_days"] == 1
+    assert len(fallback["days"]) == 1
+    day1 = fallback["days"][0]
+    assert day1["day_number"] == 1
+    assert day1["date"] == "2026-11-15"
+    assert len(day1["activities"]) >= 3
+    assert len(day1["food_recommendations"]) == 4
+    assert "breakfast" in day1["meals"]
+    assert "lunch" in day1["meals"]
+    assert "snack" in day1["meals"]
+    assert "dinner" in day1["meals"]
+    assert day1["daily_budget"]["total"] > 0
+
+
+def test_24_multi_day_trip():
+    """Verify 5-day itinerary synthesis with sequential calendar dates and day indexing."""
+    state = create_initial_travel_state(
+        trip_id="trip-24",
+        user_id="user-24",
+        trip_data={
+            "destination": "Kerala",
+            "start_date": "2026-12-01",
+            "duration_days": 5,
+            "budget": 60000.0,
+            "currency": "INR",
+        },
+    )
+    fallback = ItineraryAgent.generate_fallback_itinerary(state)
+    assert fallback["duration_days"] == 5
+    assert len(fallback["days"]) == 5
+    for i, d in enumerate(fallback["days"]):
+        assert d["day_number"] == i + 1
+        assert d["estimated_day_cost"] > 0
+    assert fallback["days"][0]["date"] == "2026-12-01"
+    assert fallback["days"][4]["date"] == "2026-12-05"
+
+
+def test_25_rich_gemini_structured_output_parsing():
+    """Verify parsing when Gemini returns full structured JSON with morning/afternoon/evening blocks and meals."""
+    state = create_initial_travel_state(
+        trip_id="trip-25",
+        user_id="user-25",
+        trip_data={"destination": "Jaipur", "duration_days": 2, "start_date": "2026-11-20", "travelers": 2},
+    )
+    mock_payload = {
+        "trip_summary": {
+            "destination": "Jaipur",
+            "duration_days": 2,
+            "travel_style": "cultural",
+            "estimated_total_cost": 18000.0,
+            "budget_status": "within_budget",
+            "cost_per_traveler": 9000.0,
+        },
+        "days": [
+            {
+                "day_number": 1,
+                "date": "2026-11-20",
+                "theme": "Royal Forts & Palaces",
+                "summary": "Explore Amber Fort and City Palace with traditional Rajasthani dinner.",
+                "weather_summary": "Sunny with clear skies (24°C)",
+                "weather_note": "Cool morning and pleasant afternoon.",
+                "morning": {
+                    "activities": [
+                        {
+                            "time_slot": "morning",
+                            "start_time": "09:00",
+                            "end_time": "12:00",
+                            "place_name": "Amber Palace & Fort",
+                            "category": "famous_place",
+                            "description": "Magnificent hilltop fort complex with mirror mosaics.",
+                            "what_to_do": "Tour Sheesh Mahal, courtyard ramparts, and panoramic hills.",
+                            "why_recommended": "Iconic UNESCO heritage landmark showcasing Rajput architecture.",
+                            "estimated_cost": 500.0,
+                            "currency": "INR",
+                            "visit_duration_minutes": 180,
+                            "visit_duration": "3 hours",
+                            "travel_time_from_previous": "30 mins via taxi",
+                            "transport_mode": "taxi",
+                            "practical_tips": "Hire an official audio guide at the main gate.",
+                            "is_indoor": False,
+                            "weather_suitability": "Optimal during cool morning hours",
+                            "notes": "Stair climbing involved; wear sports shoes",
+                        }
+                    ]
+                },
+                "afternoon": {
+                    "activities": [
+                        {
+                            "time_slot": "afternoon",
+                            "start_time": "14:30",
+                            "end_time": "16:30",
+                            "place_name": "City Palace Museum",
+                            "category": "cultural_historical",
+                            "description": "Royal residence with weapon armories and royal textile galleries.",
+                            "what_to_do": "Visit the textile gallery, armor museum, and Chandra Mahal courtyard.",
+                            "why_recommended": "Indoor historical collections sheltered from midday sun.",
+                            "estimated_cost": 350.0,
+                            "currency": "INR",
+                            "visit_duration_minutes": 120,
+                            "is_indoor": True,
+                        }
+                    ]
+                },
+                "evening": {
+                    "activities": [
+                        {
+                            "time_slot": "evening",
+                            "start_time": "17:30",
+                            "end_time": "19:30",
+                            "place_name": "Hawa Mahal & Johari Bazaar Walk",
+                            "category": "famous_place",
+                            "description": "Wind Palace facade and traditional jewelry bazaar.",
+                            "what_to_do": "Photograph the palace facade and explore local craft stores.",
+                            "why_recommended": "Golden hour lighting on pink sandstone.",
+                            "estimated_cost": 50.0,
+                            "currency": "INR",
+                            "visit_duration_minutes": 120,
+                            "is_indoor": False,
+                        }
+                    ]
+                },
+                "meals": {
+                    "breakfast": {
+                        "name": "Tapri Central Tea House",
+                        "meal": "breakfast",
+                        "restaurant_type": "Heritage Rooftop Tearoom",
+                        "cuisine_type": "Rajasthani & Indian Breakfast",
+                        "estimated_cost": 300.0,
+                        "currency": "INR",
+                        "suggested_time": "08:00 - 08:45",
+                        "local_specialty": "Masala Chai with Dal Pakwan",
+                        "dietary_fit": "Vegetarian",
+                    },
+                    "lunch": {
+                        "name": "Laxmi Misthan Bhandar (LMB)",
+                        "meal": "lunch",
+                        "restaurant_type": "Iconic Heritage Restaurant",
+                        "cuisine_type": "Rajasthani Vegetarian Thali",
+                        "estimated_cost": 550.0,
+                        "currency": "INR",
+                        "suggested_time": "12:45 - 14:00",
+                        "local_specialty": "Dal Baati Churma & Gatte ki Sabzi",
+                        "dietary_fit": "Pure Vegetarian",
+                    },
+                    "snack": {
+                        "name": "Samrat Kachori House",
+                        "meal": "snack",
+                        "restaurant_type": "Street Delicacy Spot",
+                        "cuisine_type": "Rajasthani Savouries",
+                        "estimated_cost": 100.0,
+                        "currency": "INR",
+                        "suggested_time": "16:45 - 17:15",
+                        "local_specialty": "Crisp Pyaaz Kachori with tamarind chutney",
+                        "dietary_fit": "Vegetarian",
+                    },
+                    "dinner": {
+                        "name": "Handi Restaurant",
+                        "meal": "dinner",
+                        "restaurant_type": "Traditional Mughlai & North Indian",
+                        "cuisine_type": "North Indian Specialties",
+                        "estimated_cost": 750.0,
+                        "currency": "INR",
+                        "suggested_time": "20:00 - 21:30",
+                        "local_specialty": "Handi Paneer & Butter Naan",
+                        "dietary_fit": "Vegetarian options",
+                    },
+                },
+                "daily_budget": {
+                    "food": 1700.0,
+                    "transport": 800.0,
+                    "activities": 900.0,
+                    "miscellaneous": 300.0,
+                    "total": 3700.0,
+                },
+                "travel_tips": [
+                    "Buy a composite entry ticket to cover multiple monuments at a discount.",
+                ],
+            }
+        ],
+        "overall_tips": [
+            "Use e-rickshaws for short intra-bazaar transit.",
+        ],
+        "packing_suggestions": [
+            "Cotton scarf and sunglasses for fort exploration.",
+        ],
+    }
+
+    mock_client = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.text = json.dumps(mock_payload)
+    mock_client.models.generate_content.return_value = mock_resp
+
+    with patch("app.agents.itinerary_agent.get_gemini_client", return_value=mock_client):
+        res = ItineraryAgent.generate_itinerary(state)
+        assert res["itinerary_status"] == "ready"
+        itin = res["itinerary"]
+        assert itin["duration_days"] == 2
+        d1 = itin["days"][0]
+        assert d1["theme"] == "Royal Forts & Palaces"
+        assert len(d1["activities"]) >= 3
+        assert d1["activities"][0]["place_name"] == "Amber Palace & Fort"
+        assert d1["activities"][0]["what_to_do"] is not None
+        assert d1["activities"][0]["why_recommended"] is not None
+        assert d1["meals"]["lunch"]["local_specialty"] == "Dal Baati Churma & Gatte ki Sabzi"
+        assert d1["daily_budget"]["food"] == 1700.0
+        assert itin["cost_per_traveler"] > 0
+
+
+def test_26_budget_constraint_adaptation():
+    """Verify budget status evaluation for tight, moderate, and generous budgets."""
+    # Exceeds budget
+    state_tight = create_initial_travel_state(
+        trip_id="trip-26a",
+        user_id="user-26a",
+        trip_data={"destination": "Manali", "duration_days": 3, "budget": 2000.0},
+    )
+    itin_tight = ItineraryAgent.generate_fallback_itinerary(state_tight)
+    assert itin_tight["budget_status"] == "exceeds_budget"
+    assert itin_tight["budget_warning"] is not None
+
+    # Within budget
+    state_generous = create_initial_travel_state(
+        trip_id="trip-26b",
+        user_id="user-26b",
+        trip_data={"destination": "Manali", "duration_days": 3, "budget": 50000.0},
+    )
+    itin_generous = ItineraryAgent.generate_fallback_itinerary(state_generous)
+    assert itin_generous["budget_status"] == "within_budget"
+    assert itin_generous["budget_warning"] is None
+
+
+def test_27_weather_rain_alert_integration():
+    """Verify weather advisory integration when rain alerts are present."""
+    state = create_initial_travel_state(
+        trip_id="trip-27",
+        user_id="user-27",
+        trip_data={
+            "destination": "Mumbai",
+            "duration_days": 2,
+            "weather_insights": [
+                {"type": "rain_alert", "title": "Heavy Monsoon Downpour", "message": "Expect heavy rain in the coastal belt."}
+            ],
+        },
+    )
+    itin = ItineraryAgent.generate_fallback_itinerary(state)
+    assert "heavy rain" in itin["days"][0]["weather_summary"].lower() or "monsoon" in itin["days"][0]["weather_summary"].lower()
+
+
+def test_28_traveler_personalization():
+    """Verify dietary preference reflection in meals."""
+    state = create_initial_travel_state(
+        trip_id="trip-28",
+        user_id="user-28",
+        trip_data={
+            "destination": "Varanasi",
+            "duration_days": 2,
+            "food_preference": "Pure Vegetarian",
+            "interests": ["spirituality", "ghats", "temples"],
+        },
+    )
+    itin = ItineraryAgent.generate_fallback_itinerary(state)
+    assert itin["days"][0]["meals"]["lunch"]["dietary_fit"] == "Pure Vegetarian"
+
+
+def test_29_date_range_calculation_with_end_date():
+    """Verify duration calculation from start_date and end_date."""
+    state = create_initial_travel_state(
+        trip_id="trip-29",
+        user_id="user-29",
+        trip_data={
+            "destination": "Udaipur",
+            "start_date": "2026-11-10",
+            "end_date": "2026-11-13",
+        },
+    )
+    dates, duration = ItineraryAgent.calculate_trip_dates(state)
+    assert duration == 4
+    assert dates[0] == "2026-11-10"
+    assert dates[3] == "2026-11-13"
+
+
+def test_30_invalid_dates_resilience():
+    """Verify resilience when start_date is malformed."""
+    state = create_initial_travel_state(
+        trip_id="trip-30",
+        user_id="user-30",
+        trip_data={
+            "destination": "Mysore",
+            "start_date": "invalid-date-string",
+            "duration_days": 2,
+        },
+    )
+    dates, duration = ItineraryAgent.calculate_trip_dates(state)
+    assert duration == 2
+    assert len(dates) == 2
+    assert len(dates[0].split("-")) == 3
+
+
+def test_31_cost_per_traveler_calculation():
+    """Verify cost per traveler calculation across group travelers."""
+    state = create_initial_travel_state(
+        trip_id="trip-31",
+        user_id="user-31",
+        trip_data={
+            "destination": "Goa",
+            "duration_days": 3,
+            "travelers": 4,
+            "adults": 4,
+            "children": 0,
+            "budget": 40000.0,
+        },
+    )
+    itin = ItineraryAgent.generate_fallback_itinerary(state)
+    assert itin["cost_per_traveler"] == round(itin["total_estimated_cost"] / 4, 2)
+
+
+def test_32_pydantic_schema_validation_of_enriched_itinerary():
+    """Verify that enriched itinerary data passes strict Pydantic validation."""
+    state = create_initial_travel_state(
+        trip_id="trip-32",
+        user_id="user-32",
+        trip_data={
+            "destination": "Darjeeling",
+            "duration_days": 3,
+            "budget": 30000.0,
+            "interests": ["tea gardens", "mountains", "toy train"],
+        },
+    )
+    fallback = ItineraryAgent.generate_fallback_itinerary(state)
+    model = ItineraryData(**fallback)
+    assert model.destination == "Darjeeling"
+    assert len(model.days) == 3
+    assert model.days[0].daily_budget is not None
+    assert model.days[0].meals is not None
+    assert len(model.days[0].activities) >= 3
+
+

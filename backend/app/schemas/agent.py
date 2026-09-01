@@ -175,18 +175,29 @@ class ItineraryActivityItem(BaseModel):
     place_name: str = Field(..., description="Name of the visited place, attraction, or area")
     category: str = Field("famous_place", description="Category tag")
     description: str = Field(..., description="Details and context for the activity")
+    what_to_do: Optional[str] = Field(None, description="Actionable highlights and specific things to do at this location")
+    why_recommended: Optional[str] = Field(None, description="Personalized reasoning for why this place is recommended")
     estimated_cost: float = Field(0.0, ge=0.0, description="Estimated activity or entry cost")
     currency: str = Field("INR", description="Currency code (e.g. INR, USD)")
     visit_duration_minutes: int = Field(120, ge=15, description="Estimated duration in minutes")
+    visit_duration: Optional[str] = Field(None, description="Human readable duration (e.g. '2.5 hours')")
+    travel_time_from_previous: Optional[str] = Field(None, description="Estimated transit duration from prior location (e.g. '15 mins via taxi')")
+    transport_mode: Optional[str] = Field(None, description="Recommended mode of transit (e.g. 'taxi', 'walking', 'metro', 'auto')")
+    practical_tips: Optional[str] = Field(None, description="Practical travel advice, what to carry, booking notes, or best photo spots")
+    is_indoor: Optional[bool] = Field(None, description="Whether activity is primarily indoor (True) or outdoor (False)")
+    weather_suitability: Optional[str] = Field(None, description="Weather compatibility note (e.g. 'Optimal for clear morning')")
     notes: Optional[str] = Field(None, description="Helpful tips, weather precautions, or travel suggestions")
 
 
 class ItineraryFoodRecommendation(BaseModel):
     name: str = Field(..., description="Name of recommended restaurant, cafe, or dining area")
     meal: str = Field(..., description="Meal type: 'breakfast', 'lunch', 'dinner', or 'snack'")
+    restaurant_type: Optional[str] = Field(None, description="Restaurant style (e.g. 'Heritage Cafe', 'Fine Dining', 'Street Food')")
     cuisine_type: Optional[str] = Field(None, description="Cuisine description (e.g. 'Goan Vegetarian', 'Seafood Cafe')")
     estimated_cost: float = Field(0.0, ge=0.0, description="Estimated cost per person or meal")
     currency: str = Field("INR", description="Currency code")
+    suggested_time: Optional[str] = Field(None, description="Suggested dining time window (e.g. '13:00 - 14:15')")
+    local_specialty: Optional[str] = Field(None, description="Local specialty or signature dish recommendation")
     dietary_fit: Optional[str] = Field(None, description="Dietary fit (e.g. 'Pure Vegetarian', 'Vegan options')")
 
 
@@ -194,9 +205,18 @@ class ItineraryDay(BaseModel):
     day_number: int = Field(..., ge=1, description="Sequential day number (1, 2, ...)")
     date: str = Field(..., description="Calendar date (YYYY-MM-DD)")
     theme: str = Field(..., description="Thematic headline for the day (e.g. 'Heritage Walk & Sunset Beach')")
+    summary: Optional[str] = Field(None, description="Narrative summary of the day's highlights and flow")
     weather_summary: Optional[str] = Field(None, description="Weather forecast summary for this day")
-    activities: List[ItineraryActivityItem] = Field(default_factory=list, description="Scheduled activities")
-    food_recommendations: List[ItineraryFoodRecommendation] = Field(default_factory=list, description="Recommended dining")
+    weather_note: Optional[str] = Field(None, description="Specific weather caution or optimal window note")
+    morning: Optional[Dict[str, Any]] = Field(None, description="Morning plan container with activities")
+    afternoon: Optional[Dict[str, Any]] = Field(None, description="Afternoon plan container with activities")
+    evening: Optional[Dict[str, Any]] = Field(None, description="Evening plan container with activities")
+    night: Optional[Dict[str, Any]] = Field(None, description="Night plan container with activities")
+    meals: Optional[Dict[str, Any]] = Field(None, description="Structured meals dictionary (breakfast, lunch, snack, dinner)")
+    activities: List[ItineraryActivityItem] = Field(default_factory=list, description="All scheduled activities for the day")
+    food_recommendations: List[ItineraryFoodRecommendation] = Field(default_factory=list, description="Recommended dining list")
+    daily_budget: Optional[Dict[str, float]] = Field(None, description="Daily budget breakdown (food, transport, activities, miscellaneous, total)")
+    travel_tips: List[str] = Field(default_factory=list, description="Day-specific practical logistics & transit tips")
     estimated_day_cost: float = Field(0.0, ge=0.0, description="Sum of estimated activity and food costs for the day")
     notes: Optional[str] = Field(None, description="Day-level transit, packing, or pacing advice")
 
@@ -208,11 +228,15 @@ class ItineraryData(BaseModel):
     end_date: Optional[str] = None
     duration_days: int = Field(..., ge=1)
     total_estimated_cost: float = Field(0.0, ge=0.0)
+    cost_per_traveler: Optional[float] = Field(None, ge=0.0, description="Estimated cost per traveler")
     budget: Optional[float] = None
     currency: str = "INR"
-    budget_status: str = Field("within_budget", description="'within_budget', 'exceeds_budget', or 'unspecified'")
+    budget_status: str = Field("within_budget", description="'within_budget', 'near_budget', 'exceeds_budget', or 'unspecified'")
     budget_warning: Optional[str] = None
     weather_advisory: Optional[str] = None
+    trip_summary: Optional[Dict[str, Any]] = Field(None, description="Executive trip summary")
+    overall_tips: List[str] = Field(default_factory=list, description="Holistic travel & safety advice")
+    packing_suggestions: List[str] = Field(default_factory=list, description="Tailored packing suggestions")
     days: List[ItineraryDay] = Field(default_factory=list)
 
 

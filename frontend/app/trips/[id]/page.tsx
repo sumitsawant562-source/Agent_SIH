@@ -1385,27 +1385,73 @@ function TripDetailsContent() {
                 return (
                   <div className="space-y-6 pt-2">
                     {/* Day Banner */}
-                    <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-violet-400 uppercase tracking-wider">Day {day.day_number} • {day.date}</span>
+                          <span className="text-xs font-bold text-violet-400 uppercase tracking-wider">
+                            Day {day.day_number} • {day.date}
+                          </span>
                         </div>
-                        <h3 className="text-base font-bold text-white mt-0.5">{day.theme}</h3>
-                        {day.weather_summary && (
-                          <p className="text-xs text-cyan-300/90 mt-1 flex items-center gap-1.5">
-                            <CloudSun className="h-3.5 w-3.5 text-cyan-400" />
-                            <span>{day.weather_summary}</span>
+                        <h3 className="text-base font-bold text-white mt-1">{day.theme}</h3>
+                        {day.summary && (
+                          <p className="text-xs text-slate-300 mt-1 leading-relaxed max-w-2xl">{day.summary}</p>
+                        )}
+                        {(day.weather_summary || day.weather_note) && (
+                          <p className="text-xs text-cyan-300/90 mt-2 flex items-center gap-1.5">
+                            <CloudSun className="h-3.5 w-3.5 text-cyan-400 flex-shrink-0" />
+                            <span>{day.weather_summary || day.weather_note}</span>
                           </p>
                         )}
                       </div>
 
-                      <div className="text-right">
-                        <div className="text-[11px] text-slate-400">Day Estimated Cost</div>
-                        <div className="text-base font-bold text-emerald-400">
+                      <div className="text-right flex-shrink-0">
+                        <div className="text-[11px] text-slate-400">Day Estimated Budget</div>
+                        <div className="text-lg font-bold text-emerald-400 mt-0.5">
                           {itineraryData.currency} {Math.round(day.estimated_day_cost).toLocaleString()}
                         </div>
+                        {itineraryData.cost_per_traveler && (
+                          <div className="text-[10px] text-slate-500">
+                            ~{itineraryData.currency} {Math.round(itineraryData.cost_per_traveler / (itineraryData.duration_days || 1)).toLocaleString()} / person
+                          </div>
+                        )}
                       </div>
                     </div>
+
+                    {/* Daily Budget Breakdown Pill Bar if present */}
+                    {day.daily_budget && (
+                      <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-3.5">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5">
+                          <Wallet className="h-3.5 w-3.5 text-emerald-400" />
+                          <span>Daily Budget Allocation Breakdown</span>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                          <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800">
+                            <span className="text-[10px] text-slate-500 block">Food & Dining</span>
+                            <span className="font-bold text-amber-300">
+                              {itineraryData.currency} {Math.round(day.daily_budget.food || 0).toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800">
+                            <span className="text-[10px] text-slate-500 block">Local Transit</span>
+                            <span className="font-bold text-blue-300">
+                              {itineraryData.currency} {Math.round(day.daily_budget.transport || 0).toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800">
+                            <span className="text-[10px] text-slate-500 block">Activities & Entry</span>
+                            <span className="font-bold text-violet-300">
+                              {itineraryData.currency} {Math.round(day.daily_budget.activities || 0).toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="p-2 rounded-xl bg-slate-950/60 border border-slate-800">
+                            <span className="text-[10px] text-slate-500 block">Miscellaneous</span>
+                            <span className="font-bold text-slate-300">
+                              {itineraryData.currency} {Math.round(day.daily_budget.miscellaneous || 0).toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Activities Timeline */}
                     <div className="space-y-3">
@@ -1414,33 +1460,65 @@ function TripDetailsContent() {
                         <span>Scheduled Activities & Excursions</span>
                       </h4>
 
-                      <div className="grid grid-cols-1 gap-3">
+                      <div className="grid grid-cols-1 gap-3.5">
                         {day.activities.map((act, actIdx) => (
                           <div
                             key={actIdx}
-                            className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 hover:border-slate-700 transition-all flex flex-col md:flex-row md:items-start justify-between gap-4"
+                            className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 hover:border-slate-700 transition-all flex flex-col md:flex-row md:items-start justify-between gap-4 shadow-sm"
                           >
-                            <div className="space-y-1.5 flex-1">
+                            <div className="space-y-2 flex-1">
                               <div className="flex flex-wrap items-center gap-2">
                                 <Badge className="bg-violet-500/20 text-violet-300 border-violet-500/30 text-[10px] uppercase font-bold">
                                   {act.time_slot}
                                 </Badge>
-                                <span className="text-xs font-semibold text-slate-300">
+                                <span className="text-xs font-semibold text-slate-300 flex items-center gap-1">
+                                  <Clock className="h-3 w-3 text-slate-500" />
                                   {act.start_time} - {act.end_time}
                                 </span>
                                 <Badge variant="outline" className="border-slate-700 text-slate-400 text-[10px]">
-                                  {act.visit_duration_minutes} min
+                                  {act.visit_duration || `${act.visit_duration_minutes} min`}
                                 </Badge>
+                                {act.is_indoor !== undefined && act.is_indoor !== null && (
+                                  <Badge variant="outline" className="border-slate-800 bg-slate-950/60 text-[10px] text-slate-400">
+                                    {act.is_indoor ? "🏛️ Indoor" : "🌲 Outdoor"}
+                                  </Badge>
+                                )}
+                                {act.transport_mode && act.travel_time_from_previous && (
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-teal-300 font-mono flex items-center gap-1">
+                                    🚗 {act.travel_time_from_previous}
+                                  </span>
+                                )}
                               </div>
 
-                              <h5 className="text-sm font-bold text-white pt-1">{act.place_name}</h5>
-                              <p className="text-xs text-slate-400 leading-relaxed">{act.description}</p>
-
-                              {act.notes && (
-                                <p className="text-[11px] text-violet-300/80 italic pt-1">
-                                  💡 {act.notes}
+                              <div>
+                                <h5 className="text-sm font-bold text-white">{act.place_name}</h5>
+                                <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                                  {act.what_to_do || act.description}
                                 </p>
+                              </div>
+
+                              {act.why_recommended && (
+                                <div className="p-2.5 rounded-xl bg-violet-500/5 border border-violet-500/15 text-[11px] text-violet-200 leading-relaxed flex items-start gap-2">
+                                  <Sparkles className="h-3.5 w-3.5 text-violet-400 flex-shrink-0 mt-0.5" />
+                                  <div>
+                                    <strong className="text-violet-300">Why Recommended:</strong> {act.why_recommended}
+                                  </div>
+                                </div>
                               )}
+
+                              <div className="flex flex-wrap gap-2 pt-1 text-[11px] text-slate-400">
+                                {act.weather_suitability && (
+                                  <span className="flex items-center gap-1 text-cyan-300/90 bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-md">
+                                    <Sun className="h-3 w-3 text-amber-400" />
+                                    {act.weather_suitability}
+                                  </span>
+                                )}
+                                {act.practical_tips && (
+                                  <span className="flex items-center gap-1 text-slate-300 bg-slate-950/60 border border-slate-800 px-2 py-0.5 rounded-md">
+                                    💡 {act.practical_tips}
+                                  </span>
+                                )}
+                              </div>
                             </div>
 
                             <div className="md:text-right flex-shrink-0 flex md:flex-col items-center md:items-end justify-between gap-2">
@@ -1490,34 +1568,66 @@ function TripDetailsContent() {
                           {day.food_recommendations.map((food, fIdx) => (
                             <div
                               key={fIdx}
-                              className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-3.5 flex items-center justify-between gap-3"
+                              className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-3.5 flex flex-col justify-between gap-2"
                             >
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30 text-[10px] uppercase font-bold">
-                                    {food.meal}
-                                  </Badge>
-                                  {food.dietary_fit && (
-                                    <span className="text-[10px] text-emerald-400 font-semibold">
-                                      🌱 {food.dietary_fit}
-                                    </span>
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30 text-[10px] uppercase font-bold">
+                                      {food.meal}
+                                    </Badge>
+                                    {food.dietary_fit && (
+                                      <span className="text-[10px] text-emerald-400 font-semibold">
+                                        🌱 {food.dietary_fit}
+                                      </span>
+                                    )}
+                                    {food.suggested_time && (
+                                      <span className="text-[10px] text-slate-500 font-mono">
+                                        ⏰ {food.suggested_time}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-xs font-bold text-white mt-1.5">{food.name}</div>
+                                  {food.restaurant_type && (
+                                    <div className="text-[10px] text-slate-400">{food.restaurant_type}</div>
+                                  )}
+                                  {food.cuisine_type && (
+                                    <div className="text-[11px] text-slate-300 mt-0.5">{food.cuisine_type}</div>
                                   )}
                                 </div>
-                                <div className="text-xs font-bold text-white mt-1">{food.name}</div>
-                                {food.cuisine_type && (
-                                  <div className="text-[11px] text-slate-400">{food.cuisine_type}</div>
-                                )}
-                              </div>
 
-                              <div className="text-right">
-                                <div className="text-[10px] text-slate-400">Est. Meal Cost</div>
-                                <div className="text-xs font-bold text-amber-300">
-                                  {food.currency} {Math.round(food.estimated_cost)}
+                                <div className="text-right flex-shrink-0">
+                                  <div className="text-[10px] text-slate-400">Est. Cost</div>
+                                  <div className="text-xs font-bold text-amber-300">
+                                    {food.currency} {Math.round(food.estimated_cost)}
+                                  </div>
                                 </div>
                               </div>
+
+                              {food.local_specialty && (
+                                <div className="pt-2 border-t border-slate-800/60 text-[11px] text-amber-200/90 flex items-center gap-1.5">
+                                  <Utensils className="h-3 w-3 text-amber-400 flex-shrink-0" />
+                                  <span><strong>Must Try:</strong> {food.local_specialty}</span>
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
+                      </div>
+                    )}
+
+                    {/* Day Logistics Tips */}
+                    {day.travel_tips && day.travel_tips.length > 0 && (
+                      <div className="rounded-2xl border border-slate-800/80 bg-slate-950/60 p-3.5 space-y-1.5">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-teal-400 flex items-center gap-1.5">
+                          <Compass className="h-3.5 w-3.5 text-teal-400" />
+                          <span>Day Logistics & Transit Advice</span>
+                        </div>
+                        <ul className="list-disc list-inside text-xs text-slate-300 space-y-1">
+                          {day.travel_tips.map((tip, tIdx) => (
+                            <li key={tIdx}>{tip}</li>
+                          ))}
+                        </ul>
                       </div>
                     )}
 
@@ -1531,6 +1641,40 @@ function TripDetailsContent() {
                   </div>
                 );
               })()}
+
+              {/* OVERALL TIPS & PACKING SUGGESTIONS */}
+              {((itineraryData.overall_tips && itineraryData.overall_tips.length > 0) ||
+                (itineraryData.packing_suggestions && itineraryData.packing_suggestions.length > 0)) && (
+                <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-800">
+                  {itineraryData.overall_tips && itineraryData.overall_tips.length > 0 && (
+                    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+                      <h4 className="text-xs font-bold text-violet-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <Sparkles className="h-3.5 w-3.5" />
+                        <span>Expert Trip Tips & Advice</span>
+                      </h4>
+                      <ul className="list-disc list-inside text-xs text-slate-300 space-y-1.5">
+                        {itineraryData.overall_tips.map((tip, idx) => (
+                          <li key={idx} className="leading-relaxed">{tip}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {itineraryData.packing_suggestions && itineraryData.packing_suggestions.length > 0 && (
+                    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+                      <h4 className="text-xs font-bold text-teal-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <CheckCircle className="h-3.5 w-3.5" />
+                        <span>Personalized Packing Checklist</span>
+                      </h4>
+                      <ul className="list-disc list-inside text-xs text-slate-300 space-y-1.5">
+                        {itineraryData.packing_suggestions.map((item, idx) => (
+                          <li key={idx} className="leading-relaxed">{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
